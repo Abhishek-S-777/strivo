@@ -1,0 +1,428 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:strivo/core/theme/app_colors.dart';
+import 'package:strivo/core/theme/app_spacing.dart';
+import 'package:strivo/core/services/hive_service.dart';
+import 'package:strivo/core/utils/id_generator.dart';
+import 'package:strivo/features/workout/domain/entities/routine.dart';
+import 'package:strivo/features/workout/presentation/widgets/exercise_picker_sheet.dart';
+import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
+
+class RoutineBuilderScreen extends ConsumerStatefulWidget {
+  final String? routineId;
+
+  const RoutineBuilderScreen({super.key, this.routineId});
+
+  @override
+  ConsumerState<RoutineBuilderScreen> createState() =>
+      _RoutineBuilderScreenState();
+}
+
+class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
+  late TextEditingController _nameController;
+  late TextEditingController _descriptionController;
+  List<RoutineExercise> _exercises = [];
+  bool _isEditing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _descriptionController = TextEditingController();
+
+    if (widget.routineId != null) {
+      _isEditing = true;
+      final routine = HiveService.getRoutine(widget.routineId!);
+      if (routine != null) {
+        _nameController.text = routine.name;
+        _descriptionController.text = routine.description ?? '';
+        _exercises = List.from(routine.exercises);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft, size: 20),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(_isEditing ? 'Edit Routine' : 'New Routine'),
+        actions: [
+          TextButton(
+            onPressed: _saveRoutine,
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Name
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Routine Name',
+                      hintText: 'e.g., Push Day, Upper Body',
+                    ),
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Description
+                  TextField(
+                    controller: _descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (optional)',
+                      hintText: 'Notes about this routine...',
+                    ),
+                    maxLines: 2,
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Exercises header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Exercises',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      Text(
+                        '${_exercises.length} exercises',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: AppColors.textTertiary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Exercise list
+                  if (_exercises.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(
+                          color: AppColors.border,
+                          style: BorderStyle.solid,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(LucideIcons.listPlus,
+                              size: 32, color: AppColors.textTertiary),
+                          const SizedBox(height: 12),
+                          Text(
+                            'Add exercises to your routine',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: AppColors.textTertiary),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    ReorderableListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _exercises.length,
+                      onReorder: (oldIndex, newIndex) {
+                        setState(() {
+                          if (newIndex > oldIndex) newIndex--;
+                          final item = _exercises.removeAt(oldIndex);
+                          _exercises.insert(newIndex, item);
+                          _exercises = _exercises
+                              .asMap()
+                              .entries
+                              .map((e) => e.value.copyWith(order: e.key))
+                              .toList();
+                        });
+                      },
+                      proxyDecorator: (child, index, animation) {
+                        return Material(
+                          color: Colors.transparent,
+                          child: child,
+                        );
+                      },
+                      itemBuilder: (context, index) {
+                        final re = _exercises[index];
+                        return _RoutineExerciseItem(
+                          key: ValueKey(re.id),
+                          routineExercise: re,
+                          onSetsChanged: (sets) {
+                            setState(() {
+                              _exercises[index] =
+                                  re.copyWith(targetSets: sets);
+                            });
+                          },
+                          onRepsChanged: (reps) {
+                            setState(() {
+                              _exercises[index] =
+                                  re.copyWith(targetReps: reps);
+                            });
+                          },
+                          onRemove: () {
+                            setState(() {
+                              _exercises.removeAt(index);
+                            });
+                          },
+                        );
+                      },
+                    ),
+
+                  const SizedBox(height: 16),
+
+                  // Add exercise button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _addExercise,
+                      icon: const Icon(LucideIcons.plus, size: 18),
+                      label: const Text('Add Exercise'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addExercise() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ExercisePickerSheet(
+        onExerciseSelected: (exercise) {
+          setState(() {
+            _exercises.add(RoutineExercise(
+              id: IdGenerator.generate(),
+              exercise: exercise,
+              targetSets: 3,
+              targetReps: 10,
+              order: _exercises.length,
+            ));
+          });
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
+
+  void _saveRoutine() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a routine name')),
+      );
+      return;
+    }
+
+    final now = DateTime.now();
+    Routine routine;
+
+    if (_isEditing) {
+      final existing = HiveService.getRoutine(widget.routineId!);
+      routine = existing!.copyWith(
+        name: name,
+        description: _descriptionController.text.trim(),
+        exercises: _exercises,
+        updatedAt: now,
+      );
+    } else {
+      routine = Routine(
+        id: IdGenerator.generate(),
+        name: name,
+        description: _descriptionController.text.trim(),
+        exercises: _exercises,
+        createdAt: now,
+        updatedAt: now,
+      );
+    }
+
+    ref.read(routinesProvider.notifier).saveRoutine(routine);
+    context.pop();
+  }
+}
+
+class _RoutineExerciseItem extends StatelessWidget {
+  final RoutineExercise routineExercise;
+  final Function(int) onSetsChanged;
+  final Function(int) onRepsChanged;
+  final VoidCallback onRemove;
+
+  const _RoutineExerciseItem({
+    super.key,
+    required this.routineExercise,
+    required this.onSetsChanged,
+    required this.onRepsChanged,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border, width: 0.5),
+      ),
+      child: Row(
+        children: [
+          // Drag handle
+          Icon(LucideIcons.gripVertical,
+              size: 18, color: AppColors.textTertiary),
+          const SizedBox(width: 12),
+
+          // Exercise info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  routineExercise.exercise.name,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  routineExercise.exercise.equipment.displayName,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.textTertiary),
+                ),
+              ],
+            ),
+          ),
+
+          // Sets input
+          _CompactInput(
+            label: 'Sets',
+            value: routineExercise.targetSets,
+            onIncrement: () =>
+                onSetsChanged(routineExercise.targetSets + 1),
+            onDecrement: () => onSetsChanged(
+                (routineExercise.targetSets - 1).clamp(1, 20)),
+          ),
+          const SizedBox(width: 8),
+
+          // Reps input
+          _CompactInput(
+            label: 'Reps',
+            value: routineExercise.targetReps,
+            onIncrement: () =>
+                onRepsChanged(routineExercise.targetReps + 1),
+            onDecrement: () => onRepsChanged(
+                (routineExercise.targetReps - 1).clamp(1, 100)),
+          ),
+          const SizedBox(width: 8),
+
+          // Remove
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(LucideIcons.x,
+                size: 18, color: AppColors.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactInput extends StatelessWidget {
+  final String label;
+  final int value;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  const _CompactInput({
+    required this.label,
+    required this.value,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 9,
+            color: AppColors.textTertiary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceLight,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: onDecrement,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(LucideIcons.minus,
+                      size: 12, color: AppColors.textTertiary),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Text(
+                  '$value',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onIncrement,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(LucideIcons.plus,
+                      size: 12, color: AppColors.textTertiary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}

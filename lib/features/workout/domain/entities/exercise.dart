@@ -1,0 +1,161 @@
+import 'package:flutter/foundation.dart';
+
+/// Muscle group categories
+enum MuscleGroup {
+  chest,
+  back,
+  shoulders,
+  biceps,
+  triceps,
+  legs,
+  glutes,
+  core,
+  fullBody,
+  cardio,
+  other;
+
+  String get displayName {
+    switch (this) {
+      case MuscleGroup.chest:
+        return 'Chest';
+      case MuscleGroup.back:
+        return 'Back';
+      case MuscleGroup.shoulders:
+        return 'Shoulders';
+      case MuscleGroup.biceps:
+        return 'Biceps';
+      case MuscleGroup.triceps:
+        return 'Triceps';
+      case MuscleGroup.legs:
+        return 'Legs';
+      case MuscleGroup.glutes:
+        return 'Glutes';
+      case MuscleGroup.core:
+        return 'Core';
+      case MuscleGroup.fullBody:
+        return 'Full Body';
+      case MuscleGroup.cardio:
+        return 'Cardio';
+      case MuscleGroup.other:
+        return 'Other';
+    }
+  }
+}
+
+/// Equipment type
+enum Equipment {
+  barbell,
+  dumbbell,
+  machine,
+  cable,
+  bodyweight,
+  kettlebell,
+  band,
+  other;
+
+  String get displayName {
+    switch (this) {
+      case Equipment.barbell:
+        return 'Barbell';
+      case Equipment.dumbbell:
+        return 'Dumbbell';
+      case Equipment.machine:
+        return 'Machine';
+      case Equipment.cable:
+        return 'Cable';
+      case Equipment.bodyweight:
+        return 'Bodyweight';
+      case Equipment.kettlebell:
+        return 'Kettlebell';
+      case Equipment.band:
+        return 'Band';
+      case Equipment.other:
+        return 'Other';
+    }
+  }
+}
+
+/// Represents an exercise definition (template)
+@immutable
+class Exercise {
+  final String id;
+  final String name;
+  final MuscleGroup primaryMuscle;
+  final MuscleGroup? secondaryMuscle;
+  final Equipment equipment;
+  final String? notes;
+  final bool isCustom;
+
+  const Exercise({
+    required this.id,
+    required this.name,
+    required this.primaryMuscle,
+    this.secondaryMuscle,
+    required this.equipment,
+    this.notes,
+    this.isCustom = false,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'primaryMuscle': primaryMuscle.name,
+      'secondaryMuscle': secondaryMuscle?.name,
+      'equipment': equipment.name,
+      'notes': notes,
+      'isCustom': isCustom,
+    };
+  }
+
+  factory Exercise.fromMap(Map<String, dynamic> map) {
+    return Exercise(
+      id: map['id'] as String,
+      name: map['name'] as String,
+      primaryMuscle: MuscleGroup.values.firstWhere(
+        (e) => e.name == map['primaryMuscle'],
+        orElse: () => MuscleGroup.other,
+      ),
+      secondaryMuscle: map['secondaryMuscle'] != null
+          ? MuscleGroup.values.firstWhere(
+              (e) => e.name == map['secondaryMuscle'],
+              orElse: () => MuscleGroup.other,
+            )
+          : null,
+      equipment: Equipment.values.firstWhere(
+        (e) => e.name == map['equipment'],
+        orElse: () => Equipment.other,
+      ),
+      notes: map['notes'] as String?,
+      isCustom: map['isCustom'] as bool? ?? false,
+    );
+  }
+
+  Exercise copyWith({
+    String? id,
+    String? name,
+    MuscleGroup? primaryMuscle,
+    MuscleGroup? secondaryMuscle,
+    Equipment? equipment,
+    String? notes,
+    bool? isCustom,
+  }) {
+    return Exercise(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      primaryMuscle: primaryMuscle ?? this.primaryMuscle,
+      secondaryMuscle: secondaryMuscle ?? this.secondaryMuscle,
+      equipment: equipment ?? this.equipment,
+      notes: notes ?? this.notes,
+      isCustom: isCustom ?? this.isCustom,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Exercise && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
+}
