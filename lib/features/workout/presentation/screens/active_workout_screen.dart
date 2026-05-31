@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/workout/domain/entities/exercise_set.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
@@ -39,6 +40,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     final workout = ref.watch(activeWorkoutProvider);
     final duration = ref.watch(workoutDurationProvider);
     final restTimer = ref.watch(restTimerProvider);
+    ref.watch(weightUnitProvider); // rebuild on kg/lbs change
 
     if (workout == null) {
       return Scaffold(
@@ -501,7 +503,7 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                         size: 13, color: AppColors.textTertiary),
                     const SizedBox(width: 6),
                     Text(
-                      'Last: ${prev.sets.length} sets × ${prev.maxWeight}kg',
+                      'Last: ${prev.sets.length} sets × ${Units.weightLabel(prev.maxWeight)}',
                       style: Theme.of(context)
                           .textTheme
                           .labelSmall
@@ -525,8 +527,8 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                 const Expanded(child: Text('PREVIOUS', textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
                 const SizedBox(width: 8),
-                const SizedBox(width: 72, child: Text('KG', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
+                SizedBox(width: 72, child: Text(Units.label.toUpperCase(), textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
                 const SizedBox(width: 8),
                 const SizedBox(width: 56, child: Text('REPS', textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
@@ -673,7 +675,7 @@ class _SetRow extends StatelessWidget {
               child: Center(
                 child: Text(
                   previousSet != null
-                      ? '${previousSet!.weight} × ${previousSet!.reps}'
+                      ? '${Units.weight(previousSet!.weight)} × ${previousSet!.reps}'
                       : '—',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textTertiary,
@@ -683,17 +685,18 @@ class _SetRow extends StatelessWidget {
             ),
             const SizedBox(width: 8),
 
-            // Weight input
+            // Weight input (shown/edited in the user's unit; stored in kg)
             _InlineNumberInput(
-              value: set.weight,
+              value: Units.fromKg(set.weight),
               width: 72,
-              onIncrement: () => onWeightChanged(set.weight + 2.5),
+              onIncrement: () => onWeightChanged(set.weight + Units.stepKg),
               onDecrement: () => onWeightChanged(
-                  (set.weight - 2.5).clamp(0, double.infinity)),
-              onDirectInput: (v) => onWeightChanged(v),
+                  (set.weight - Units.stepKg).clamp(0, double.infinity)),
+              onDirectInput: (v) => onWeightChanged(Units.toKg(v)),
               isDecimal: true,
+              unitLabel: Units.label,
               comparison: previousSet != null
-                  ? set.weight - previousSet!.weight
+                  ? Units.fromKg(set.weight) - Units.fromKg(previousSet!.weight)
                   : null,
             ),
             const SizedBox(width: 8),
@@ -752,6 +755,7 @@ class _InlineNumberInput extends StatelessWidget {
   final Function(double) onDirectInput;
   final bool isDecimal;
   final double? comparison;
+  final String? unitLabel;
 
   const _InlineNumberInput({
     required this.value,
@@ -761,6 +765,7 @@ class _InlineNumberInput extends StatelessWidget {
     required this.onDirectInput,
     this.isDecimal = false,
     this.comparison,
+    this.unitLabel,
   });
 
   @override
@@ -853,7 +858,9 @@ class _InlineNumberInput extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isDecimal ? 'Enter Weight (kg)' : 'Enter Reps'),
+        title: Text(isDecimal
+            ? 'Enter Weight (${unitLabel ?? 'kg'})'
+            : 'Enter Reps'),
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
@@ -971,7 +978,7 @@ class _BottomActionBar extends StatelessWidget {
                   const SizedBox(width: 16),
                   _MiniStat(
                     label: 'Volume',
-                    value: '${totalVolume.toStringAsFixed(0)}kg',
+                    value: Units.volumeLabel(totalVolume),
                   ),
                 ],
               ),

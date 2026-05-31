@@ -11,9 +11,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Lock to portrait mode
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
@@ -40,9 +38,5 @@ void main() async {
     debugPrint('   App will run in offline-only mode (Hive).');
   }
 
-  runApp(
-    const ProviderScope(
-      child: StrivoApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: StrivoApp()));
 }

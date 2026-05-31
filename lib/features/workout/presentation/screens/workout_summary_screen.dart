@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:strivo/core/theme/app_colors.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
@@ -15,6 +16,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(weightUnitProvider); // rebuild on kg/lbs change
     final session = HiveService.getSession(sessionId);
 
     if (session == null) {
@@ -109,12 +111,11 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                     Expanded(
                       child: _SummaryStatCard(
                         label: 'Volume',
-                        value:
-                            '${session.totalVolume.toStringAsFixed(0)} kg',
+                        value: Units.volumeLabel(session.totalVolume),
                         icon: LucideIcons.barChart2,
                         comparison: previousSession != null
-                            ? session.totalVolume -
-                                previousSession.totalVolume
+                            ? Units.fromKg(session.totalVolume -
+                                previousSession.totalVolume)
                             : null,
                       ),
                     ),
@@ -204,7 +205,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                                                   .titleSmall,
                                             ),
                                             Text(
-                                              '${e.maxWeight} kg × ${e.bestSet?.reps ?? 0} reps',
+                                              '${Units.weightLabel(e.maxWeight)} × ${e.bestSet?.reps ?? 0} reps',
                                               style: Theme.of(context)
                                                   .textTheme
                                                   .bodySmall
@@ -387,7 +388,7 @@ class _ExerciseBreakdownCard extends StatelessWidget {
                 ),
                 if (volumeDiff != null && volumeDiff != 0)
                   Text(
-                    '${volumeDiff > 0 ? '+' : ''}${volumeDiff.toStringAsFixed(0)} kg vol',
+                    '${volumeDiff > 0 ? '+' : ''}${Units.fromKg(volumeDiff).toStringAsFixed(0)} ${Units.label} vol',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: volumeDiff > 0
                               ? AppColors.increase
@@ -415,7 +416,7 @@ class _ExerciseBreakdownCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            '${s.weight} kg × ${s.reps} reps',
+                            '${Units.weightLabel(s.weight)} × ${s.reps} reps',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                           if (s.isPR) ...[

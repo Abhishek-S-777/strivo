@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/analytics/presentation/providers/analytics_providers.dart';
 import 'package:strivo/features/analytics/presentation/providers/insights_engine.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
@@ -25,6 +26,7 @@ class AnalyticsScreen extends ConsumerWidget {
     final exerciseTrends = ref.watch(exerciseTrendsProvider);
     final muscleVolume = ref.watch(muscleGroupVolumeProvider);
     final consistency = ref.watch(consistencyProvider);
+    ref.watch(weightUnitProvider); // rebuild on kg/lbs change
 
     return Scaffold(
       body: SafeArea(
@@ -537,7 +539,7 @@ class _WeeklyVolumeChart extends StatelessWidget {
                       getTooltipItem: (group, groupIndex, rod, rodIndex) {
                         final week = weeklyLoad[group.x.toInt()];
                         return BarTooltipItem(
-                          '${(week.totalVolume / 1000).toStringAsFixed(1)}k kg\n',
+                          '${Units.volumeLabel(week.totalVolume)}\n',
                           TextStyle(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w600,
@@ -678,7 +680,7 @@ class _MuscleDistributionCard extends StatelessWidget {
                               ?.copyWith(fontWeight: FontWeight.w500),
                         ),
                         Text(
-                          '${percent.toStringAsFixed(0)}% · ${_formatVolume(entry.value)}',
+                          '${percent.toStringAsFixed(0)}% · ${Units.volumeLabel(entry.value)}',
                           style: Theme.of(context)
                               .textTheme
                               .labelSmall
@@ -704,11 +706,6 @@ class _MuscleDistributionCard extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatVolume(double v) {
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}k kg';
-    return '${v.toStringAsFixed(0)} kg';
   }
 
   Color _getMuscleColor(MuscleGroup muscle) {
@@ -781,7 +778,7 @@ class _ExerciseTrendCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '${trend.currentWeight.toStringAsFixed(1)} kg',
+                        Units.weightLabel(trend.currentWeight),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -801,7 +798,7 @@ class _ExerciseTrendCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${trend.weightChange > 0 ? '+' : ''}${trend.weightChange.toStringAsFixed(1)} kg',
+                            '${trend.weightChange > 0 ? '+' : ''}${Units.fromKg(trend.weightChange).toStringAsFixed(1)} ${Units.label}',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -815,7 +812,7 @@ class _ExerciseTrendCard extends StatelessWidget {
                         ),
                       const SizedBox(width: 8),
                       Text(
-                        'Est. 1RM: ${trend.estimated1RM.toStringAsFixed(0)} kg',
+                        'Est. 1RM: ${Units.weightLabel(trend.estimated1RM)}',
                         style: Theme.of(context)
                             .textTheme
                             .labelSmall
@@ -934,7 +931,7 @@ class _BasicExerciseCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '${progress.currentMax} kg',
+                        Units.weightLabel(progress.currentMax),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: AppColors.textSecondary,
                             ),
@@ -951,7 +948,7 @@ class _BasicExerciseCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${weightDiff > 0 ? '+' : ''}${weightDiff.toStringAsFixed(1)} kg',
+                            '${weightDiff > 0 ? '+' : ''}${Units.fromKg(weightDiff).toStringAsFixed(1)} ${Units.label}',
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -965,7 +962,7 @@ class _BasicExerciseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${progress.dataPoints.length} sessions • Best: ${progress.allTimeMax} kg',
+                    '${progress.dataPoints.length} sessions • Best: ${Units.weightLabel(progress.allTimeMax)}',
                     style: Theme.of(context)
                         .textTheme
                         .labelSmall
@@ -1022,12 +1019,17 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
     final points = selected.dataPoints;
     final hasCurve = points.length >= 2;
 
+    // Plot in the user's display unit.
     final maxW = points.isEmpty
         ? 0.0
-        : points.map((p) => p.maxWeight).reduce((a, b) => a > b ? a : b);
+        : points
+            .map((p) => Units.fromKg(p.maxWeight))
+            .reduce((a, b) => a > b ? a : b);
     final minW = points.isEmpty
         ? 0.0
-        : points.map((p) => p.maxWeight).reduce((a, b) => a < b ? a : b);
+        : points
+            .map((p) => Units.fromKg(p.maxWeight))
+            .reduce((a, b) => a < b ? a : b);
     final span = (maxW - minW).abs();
     final pad = span == 0 ? (maxW == 0 ? 5.0 : maxW * 0.1) : span * 0.25;
 
@@ -1085,7 +1087,8 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${(trend?.estimated1RM ?? selected.allTimeMax).round()} kg',
+                    Units.weightLabel(
+                        trend?.estimated1RM ?? selected.allTimeMax),
                     style: theme.textTheme.titleLarge?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w800,
@@ -1223,7 +1226,7 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
           getTooltipItems: (spots) => spots.map((s) {
             final p = points[s.x.toInt()];
             return LineTooltipItem(
-              '${p.maxWeight} kg\n${DateFormat('MMM d').format(p.date)}',
+              '${Units.weightLabel(p.maxWeight)}\n${DateFormat('MMM d').format(p.date)}',
               const TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w600,
@@ -1237,7 +1240,7 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
         LineChartBarData(
           spots: [
             for (var i = 0; i < points.length; i++)
-              FlSpot(i.toDouble(), points[i].maxWeight),
+              FlSpot(i.toDouble(), Units.fromKg(points[i].maxWeight)),
           ],
           isCurved: true,
           curveSmoothness: 0.3,

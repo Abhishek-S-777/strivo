@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
@@ -485,6 +486,7 @@ final insightsProvider = Provider<List<TrainingInsight>>((ref) {
   final trends = ref.watch(exerciseTrendsProvider);
   final streak = ref.watch(trainingStreakProvider);
   final muscleVolume = ref.watch(muscleGroupVolumeProvider);
+  ref.watch(weightUnitProvider); // regenerate insight text on kg/lbs change
   return _generateInsights(sessions, trends, streak, muscleVolume);
 });
 
@@ -517,7 +519,7 @@ List<TrainingInsight> _generateInsights(
           type: InsightType.prAchieved,
           title: '🏆 New PR on ${we.exercise.name}!',
           description:
-              'You hit ${bestPR.weight}kg × ${bestPR.reps} reps — a new personal record. Keep pushing!',
+              'You hit ${Units.weightLabel(bestPR.weight)} × ${bestPR.reps} reps — a new personal record. Keep pushing!',
           priority: 5,
           icon: LucideIcons.trophy,
           color: AppColors.pr,
@@ -539,7 +541,7 @@ List<TrainingInsight> _generateInsights(
           type: InsightType.strengthIncreasing,
           title: '📈 ${trend.exerciseName} is climbing',
           description:
-              'Up ${trend.weightChange.toStringAsFixed(1)}kg (${trend.weightChangePercent.toStringAsFixed(0)}%) over 4 weeks. Your programming is working.',
+              'Up ${Units.weight(trend.weightChange)} ${Units.label} (${trend.weightChangePercent.toStringAsFixed(0)}%) over 4 weeks. Your programming is working.',
           priority: 3,
           icon: LucideIcons.trendingUp,
           color: AppColors.success,
@@ -567,7 +569,7 @@ List<TrainingInsight> _generateInsights(
           type: InsightType.strengthDecreasing,
           title: '📉 ${trend.exerciseName} is dropping',
           description:
-              'Down ${trend.weightChange.abs().toStringAsFixed(1)}kg over 4 weeks. Check recovery, sleep, and nutrition.',
+              'Down ${Units.weight(trend.weightChange.abs())} ${Units.label} over 4 weeks. Check recovery, sleep, and nutrition.',
           priority: 4,
           icon: LucideIcons.trendingDown,
           color: AppColors.error,
@@ -579,31 +581,34 @@ List<TrainingInsight> _generateInsights(
   }
 
   // ── 3. Volume Milestones ───────────────────────────────────────────────
+  // Milestones are evaluated in the user's display unit (same round numbers
+  // in kg or lbs), so a lbs user celebrates "100,000 lbs", not an odd figure.
   final totalLifetimeVolume =
       completed.fold(0.0, (sum, s) => sum + s.totalVolume);
+  final displayTotal = Units.fromKg(totalLifetimeVolume);
+  final displayWithoutLast = Units.fromKg(totalLifetimeVolume -
+      (completed.isNotEmpty ? completed.first.totalVolume : 0));
 
   const milestones = [
-    (threshold: 1000000.0, label: '1,000,000 kg'),
-    (threshold: 500000.0, label: '500,000 kg'),
-    (threshold: 250000.0, label: '250,000 kg'),
-    (threshold: 100000.0, label: '100,000 kg'),
-    (threshold: 50000.0, label: '50,000 kg'),
-    (threshold: 25000.0, label: '25,000 kg'),
-    (threshold: 10000.0, label: '10,000 kg'),
+    (threshold: 1000000.0, label: '1,000,000'),
+    (threshold: 500000.0, label: '500,000'),
+    (threshold: 250000.0, label: '250,000'),
+    (threshold: 100000.0, label: '100,000'),
+    (threshold: 50000.0, label: '50,000'),
+    (threshold: 25000.0, label: '25,000'),
+    (threshold: 10000.0, label: '10,000'),
   ];
 
   for (final m in milestones) {
-    if (totalLifetimeVolume >= m.threshold) {
-      // Check if we recently crossed it (volume without last session < threshold)
-      final volumeWithoutLast =
-          totalLifetimeVolume - (completed.isNotEmpty ? completed.first.totalVolume : 0);
-      if (volumeWithoutLast < m.threshold) {
+    if (displayTotal >= m.threshold) {
+      // Only fire when this session is what crossed the threshold.
+      if (displayWithoutLast < m.threshold) {
         insights.add(TrainingInsight(
           id: 'volume_milestone_${m.threshold.toInt()}',
           type: InsightType.volumeMilestone,
-          title: '🎯 ${m.label} Total Volume!',
+          title: '🎯 ${m.label} ${Units.label} Total Volume!',
           description:
-              'You\'ve lifted a lifetime total of ${m.label}. That\'s serious dedication.',
+              'You\'ve lifted a lifetime total of ${m.label} ${Units.label}. That\'s serious dedication.',
           priority: 4,
           icon: LucideIcons.award,
           color: AppColors.primary,

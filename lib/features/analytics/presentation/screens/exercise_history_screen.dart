@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:strivo/core/theme/app_colors.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/analytics/presentation/providers/analytics_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
 
@@ -44,6 +45,7 @@ class _ExerciseHistoryScreenState
   Widget build(BuildContext context) {
     final progress =
         ref.watch(exerciseProgressProvider(widget.exerciseId));
+    ref.watch(weightUnitProvider); // rebuild on kg/lbs change
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -124,7 +126,7 @@ class _ChartView extends StatelessWidget {
               Expanded(
                 child: _ProgressStatCard(
                   label: 'Current',
-                  value: '${progress.currentMax} kg',
+                  value: Units.weightLabel(progress.currentMax),
                   icon: LucideIcons.target,
                 ),
               ),
@@ -132,7 +134,7 @@ class _ChartView extends StatelessWidget {
               Expanded(
                 child: _ProgressStatCard(
                   label: 'All-Time Best',
-                  value: '${progress.allTimeMax} kg',
+                  value: Units.weightLabel(progress.allTimeMax),
                   icon: LucideIcons.trophy,
                   highlight: true,
                 ),
@@ -252,9 +254,9 @@ class _ChartView extends StatelessWidget {
                             .entries
                             .map((e) => FlSpot(
                                   e.key.toDouble(),
-                                  showVolume
+                                  Units.fromKg(showVolume
                                       ? e.value.totalVolume
-                                      : e.value.maxWeight,
+                                      : e.value.maxWeight),
                                 ))
                             .toList(),
                         isCurved: true,
@@ -294,7 +296,7 @@ class _ChartView extends StatelessWidget {
                             final point =
                                 progress.dataPoints[spot.x.toInt()];
                             return LineTooltipItem(
-                              '${showVolume ? point.totalVolume.toStringAsFixed(0) : point.maxWeight} ${showVolume ? 'kg vol' : 'kg'}\n${DateFormat('MMM d').format(point.date)}',
+                              '${showVolume ? Units.volumeValue(point.totalVolume) : Units.weight(point.maxWeight)} ${Units.label}${showVolume ? ' vol' : ''}\n${DateFormat('MMM d').format(point.date)}',
                               const TextStyle(
                                 fontSize: 12,
                                 color: AppColors.textPrimary,
@@ -492,7 +494,7 @@ class _HistoryTableView extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: Text(
-                        '${point.maxWeight} kg',
+                        Units.weightLabel(point.maxWeight),
                         textAlign: TextAlign.center,
                         style: Theme.of(context)
                             .textTheme
@@ -503,7 +505,7 @@ class _HistoryTableView extends StatelessWidget {
                     Expanded(
                       flex: 2,
                       child: Text(
-                        point.totalVolume.toStringAsFixed(0),
+                        Units.volumeValue(point.totalVolume),
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
@@ -520,7 +522,7 @@ class _HistoryTableView extends StatelessWidget {
                       flex: 2,
                       child: weightDiff != 0
                           ? Text(
-                              '${weightDiff > 0 ? '+' : ''}${weightDiff.toStringAsFixed(1)}',
+                              '${weightDiff > 0 ? '+' : ''}${Units.fromKg(weightDiff).toStringAsFixed(1)}',
                               textAlign: TextAlign.end,
                               style: TextStyle(
                                 fontSize: 12,

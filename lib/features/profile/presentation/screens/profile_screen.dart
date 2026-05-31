@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
+import 'package:strivo/core/units/weight_unit.dart';
+import 'package:strivo/core/services/export_service.dart';
 import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
@@ -22,6 +24,7 @@ class ProfileScreen extends ConsumerWidget {
         completedSessions.fold(0, (sum, s) => sum + s.totalCompletedSets);
     final totalDuration = completedSessions.fold(
         Duration.zero, (sum, s) => sum + s.duration);
+    final unit = ref.watch(weightUnitProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -61,7 +64,7 @@ class ProfileScreen extends ConsumerWidget {
                   Expanded(
                     child: _AllTimeStatCard(
                       label: 'Total Volume',
-                      value: _formatVolume(totalVolume),
+                      value: Units.volumeLabel(totalVolume),
                       icon: LucideIcons.barChart2,
                     ),
                   ),
@@ -103,8 +106,10 @@ class ProfileScreen extends ConsumerWidget {
                     _SettingsTile(
                       icon: LucideIcons.ruler,
                       title: 'Weight Unit',
-                      subtitle: 'Kilograms (kg)',
-                      onTap: () => _showWeightUnitPicker(context),
+                      subtitle: unit == WeightUnit.kg
+                          ? 'Kilograms (kg)'
+                          : 'Pounds (lbs)',
+                      onTap: () => _showWeightUnitPicker(context, ref),
                     ),
                     const Divider(),
                     _SettingsTile(
@@ -117,7 +122,7 @@ class ProfileScreen extends ConsumerWidget {
                     _SettingsTile(
                       icon: LucideIcons.barChart3,
                       title: 'Weight Increments',
-                      subtitle: '2.5 kg',
+                      subtitle: Units.isLbs ? '5 lbs' : '2.5 kg',
                       onTap: () {},
                     ),
                   ],
@@ -132,12 +137,8 @@ class ProfileScreen extends ConsumerWidget {
                     _SettingsTile(
                       icon: LucideIcons.database,
                       title: 'Export Data',
-                      subtitle: 'Export your workout history',
-                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Data export is coming soon'),
-                        ),
-                      ),
+                      subtitle: 'CSV, JSON, or an AI-ready report',
+                      onTap: () => _showExportSheet(context, ref),
                     ),
                     const Divider(),
                     _SettingsTile(
@@ -338,13 +339,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  String _formatVolume(double v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M kg';
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}k kg';
-    return '${v.toStringAsFixed(0)} kg';
-  }
-
-  void _showWeightUnitPicker(BuildContext context) {
+  void _showWeightUnitPicker(BuildContext context, WidgetRef ref) {
+    final current = ref.read(weightUnitProvider);
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Container(
@@ -355,17 +351,101 @@ class ProfileScreen extends ConsumerWidget {
           children: [
             Text('Weight Unit',
                 style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Kilograms (kg)'),
-              leading: const Icon(LucideIcons.check, color: AppColors.primary),
-              onTap: () => Navigator.pop(ctx),
+            const SizedBox(height: 8),
+            Text(
+              'Applies across logging, analytics and exports. Existing data is converted automatically.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
             ),
-            ListTile(
-              title: const Text('Pounds (lbs)'),
-              leading: const Icon(LucideIcons.circle,
-                  color: AppColors.textTertiary),
-              onTap: () => Navigator.pop(ctx),
+            const SizedBox(height: 16),
+            for (final u in WeightUnit.values)
+              ListTile(
+                title: Text(u == WeightUnit.kg
+                    ? 'Kilograms (kg)'
+                    : 'Pounds (lbs)'),
+                leading: Icon(
+                  u == current ? LucideIcons.checkCircle : LucideIcons.circle,
+                  color: u == current
+                      ? AppColors.primary
+                      : AppColors.textTertiary,
+                ),
+                onTap: () {
+                  ref.read(weightUnitProvider.notifier).setUnit(u);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showExportSheet(BuildContext context, WidgetRef ref) {
+    final sessions = ref
+        .read(workoutSessionsProvider)
+        .where((s) => s.isCompleted)
+        .toList();
+
+    Future<void> run(ExportFormat fmt) async {
+      Navigator.pop(context);
+      if (sessions.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No completed workouts to export yet')),
+        );
+        return;
+      }
+      try {
+        await ExportService.instance.share(fmt, sessions);
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not export. Please try again.')),
+          );
+        }
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Export Data',
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text(
+              '${sessions.length} completed workouts · weights in ${Units.label}',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
+            ),
+            const SizedBox(height: 12),
+            _SettingsTile(
+              icon: LucideIcons.sparkles,
+              title: 'AI Training Report',
+              subtitle:
+                  'Readable Markdown summary — paste to an AI to tune diet & recovery',
+              onTap: () => run(ExportFormat.report),
+            ),
+            const Divider(),
+            _SettingsTile(
+              icon: LucideIcons.table,
+              title: 'CSV (spreadsheet)',
+              subtitle: 'One row per set — open in Excel/Sheets or diet apps',
+              onTap: () => run(ExportFormat.csv),
+            ),
+            const Divider(),
+            _SettingsTile(
+              icon: LucideIcons.braces,
+              title: 'JSON (full backup)',
+              subtitle: 'Complete structured data (canonical kg)',
+              onTap: () => run(ExportFormat.json),
             ),
           ],
         ),
@@ -541,11 +621,18 @@ class _PlateCalculatorSheet extends StatefulWidget {
 }
 
 class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
-  double _targetWeight = 60;
-  final double _barWeight = 20;
+  late final bool _isLbs = Units.isLbs;
+  late final double _barWeight = _isLbs ? 45 : 20;
+  late final double _step = _isLbs ? 5 : 2.5;
+  late final double _maxTarget = _isLbs ? 1100 : 500;
+  late double _targetWeight = _isLbs ? 135 : 60;
 
-  // Standard plate sizes (kg)
-  static const _plateSizes = [25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25];
+  // Standard plate sizes for the active unit.
+  late final List<double> _plateSizes = _isLbs
+      ? const [45.0, 35.0, 25.0, 10.0, 5.0, 2.5]
+      : const [25.0, 20.0, 15.0, 10.0, 5.0, 2.5, 1.25];
+
+  String get _unit => _isLbs ? 'lbs' : 'kg';
 
   List<double> _calculatePlates() {
     double remaining = (_targetWeight - _barWeight) / 2;
@@ -576,7 +663,7 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 8),
           Text(
-            'Bar weight: ${_barWeight.toStringAsFixed(1)} kg',
+            'Bar weight: ${_barWeight.toStringAsFixed(0)} $_unit',
             style: Theme.of(context)
                 .textTheme
                 .bodySmall
@@ -588,15 +675,15 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
           Row(
             children: [
               IconButton(
-                onPressed: () => setState(
-                    () => _targetWeight = (_targetWeight - 2.5).clamp(20, 500)),
+                onPressed: () => setState(() => _targetWeight =
+                    (_targetWeight - _step).clamp(_barWeight, _maxTarget)),
                 icon: const Icon(LucideIcons.minus),
               ),
               Expanded(
                 child: Column(
                   children: [
                     Text(
-                      '${_targetWeight.toStringAsFixed(1)} kg',
+                      '${_targetWeight.toStringAsFixed(_targetWeight % 1 == 0 ? 0 : 1)} $_unit',
                       style:
                           Theme.of(context).textTheme.displayMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
@@ -613,8 +700,8 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
                 ),
               ),
               IconButton(
-                onPressed: () => setState(
-                    () => _targetWeight = (_targetWeight + 2.5).clamp(20, 500)),
+                onPressed: () => setState(() => _targetWeight =
+                    (_targetWeight + _step).clamp(_barWeight, _maxTarget)),
                 icon: const Icon(LucideIcons.plus),
               ),
             ],
@@ -654,7 +741,7 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
                               Border.all(color: _getPlateColor(p).withAlpha(60)),
                         ),
                         child: Text(
-                          '${p.toStringAsFixed(p == p.roundToDouble() ? 0 : 1)} kg',
+                          '${p.toStringAsFixed(p == p.roundToDouble() ? 0 : 1)} $_unit',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
                             color: _getPlateColor(p),
@@ -670,6 +757,14 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
   }
 
   Color _getPlateColor(double weight) {
+    if (_isLbs) {
+      if (weight >= 45) return AppColors.error;
+      if (weight >= 35) return AppColors.primary;
+      if (weight >= 25) return AppColors.warning;
+      if (weight >= 10) return AppColors.success;
+      if (weight >= 5) return AppColors.info;
+      return AppColors.textSecondary;
+    }
     if (weight >= 25) return AppColors.error;
     if (weight >= 20) return AppColors.primary;
     if (weight >= 15) return AppColors.warning;

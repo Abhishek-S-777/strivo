@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
@@ -27,6 +28,7 @@ class HomeScreen extends ConsumerWidget {
     final weeklyLoad = ref.watch(weeklyLoadHistoryProvider);
     final user = ref.watch(currentUserProvider).valueOrNull;
     final firstName = _firstName(user?.displayName);
+    ref.watch(weightUnitProvider); // rebuild when kg/lbs preference changes
 
     return Scaffold(
       body: SafeArea(
@@ -703,7 +705,7 @@ class _RecentWorkoutCard extends StatelessWidget {
                 const SizedBox(width: 16),
                 _WorkoutStat(
                   icon: LucideIcons.barChart2,
-                  value: '${session.totalVolume.toStringAsFixed(0)} kg',
+                  value: Units.volumeLabel(session.totalVolume),
                 ),
               ],
             ),

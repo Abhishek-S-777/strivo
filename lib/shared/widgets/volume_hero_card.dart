@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 
 /// A small inline stat shown in the hero card footer (e.g. Workouts • Sets • PRs).
 class HeroStat {
@@ -108,7 +109,7 @@ class VolumeHeroCard extends StatelessWidget {
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
-                _formatVolume(volumeKg),
+                Units.volumeValue(volumeKg),
                 style: theme.textTheme.displayMedium?.copyWith(
                   fontWeight: FontWeight.w800,
                   letterSpacing: -1,
@@ -119,7 +120,7 @@ class VolumeHeroCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  'kg',
+                  Units.label,
                   style: theme.textTheme.labelMedium
                       ?.copyWith(color: AppColors.accent),
                 ),
@@ -184,12 +185,6 @@ class VolumeHeroCard extends StatelessWidget {
     final firstNonZero = sparkline.indexWhere((v) => v > 0);
     if (firstNonZero < 0) return const [];
     return sparkline.sublist(firstNonZero);
-  }
-
-  String _formatVolume(double v) {
-    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(2)}M';
-    if (v >= 10000) return '${(v / 1000).toStringAsFixed(1)}k';
-    return v.toStringAsFixed(0);
   }
 }
 
