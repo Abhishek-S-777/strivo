@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/core/services/export_service.dart';
+import 'package:strivo/core/services/firestore_sync_service.dart';
 import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
@@ -25,6 +26,8 @@ class ProfileScreen extends ConsumerWidget {
     final totalDuration = completedSessions.fold(
         Duration.zero, (sum, s) => sum + s.duration);
     final unit = ref.watch(weightUnitProvider);
+    ref.watch(weightIncrementProvider); // rebuild on increment change
+    final defaultRest = ref.watch(defaultRestSecondsProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -115,15 +118,15 @@ class ProfileScreen extends ConsumerWidget {
                     _SettingsTile(
                       icon: LucideIcons.timer,
                       title: 'Default Rest Timer',
-                      subtitle: '90 seconds',
-                      onTap: () => _showRestTimerPicker(context),
+                      subtitle: _restLabel(defaultRest),
+                      onTap: () => _showRestTimerPicker(context, ref),
                     ),
                     const Divider(),
                     _SettingsTile(
                       icon: LucideIcons.barChart3,
                       title: 'Weight Increments',
-                      subtitle: Units.isLbs ? '5 lbs' : '2.5 kg',
-                      onTap: () {},
+                      subtitle: '${Units.incrementLabel} per tap',
+                      onTap: () => _showIncrementPicker(context, ref),
                     ),
                   ],
                 ),
@@ -323,9 +326,9 @@ class ProfileScreen extends ConsumerWidget {
         children: [
           _SettingsTile(
             icon: LucideIcons.cloud,
-            title: 'Cloud Backup',
+            title: 'Back Up Now',
             subtitle: 'Connected as ${user.email}',
-            onTap: () {},
+            onTap: () => _backupNow(context, ref),
           ),
           const Divider(),
           _SettingsTile(
@@ -337,6 +340,33 @@ class ProfileScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _backupNow(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final sessions = ref.read(workoutSessionsProvider);
+    if (sessions.where((s) => s.isCompleted).isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Nothing to back up yet')),
+      );
+      return;
+    }
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Backing up to cloud…')),
+    );
+    try {
+      await FirestoreSyncService.instance.pushAllLocal();
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('✓ Workouts backed up to cloud')),
+      );
+    } catch (_) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(
+        const SnackBar(
+            content: Text('Backup failed — check your connection.')),
+      );
+    }
   }
 
   void _showWeightUnitPicker(BuildContext context, WidgetRef ref) {
@@ -453,7 +483,11 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showRestTimerPicker(BuildContext context) {
+  String _restLabel(int s) =>
+      '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')} min';
+
+  void _showRestTimerPicker(BuildContext context, WidgetRef ref) {
+    final current = ref.read(defaultRestSecondsProvider);
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Container(
@@ -464,20 +498,75 @@ class ProfileScreen extends ConsumerWidget {
           children: [
             Text('Default Rest Timer',
                 style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 16),
-            for (final seconds in [60, 90, 120, 180, 300])
+            const SizedBox(height: 4),
+            Text(
+              'Used between sets when a routine has no rest set for an exercise.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
+            ),
+            const SizedBox(height: 12),
+            for (final seconds in [45, 60, 90, 120, 180, 300])
               ListTile(
                 title: Text(
-                    '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}'),
+                    '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')} min'),
                 leading: Icon(
-                  seconds == 90
-                      ? LucideIcons.check
+                  seconds == current
+                      ? LucideIcons.checkCircle
                       : LucideIcons.circle,
-                  color: seconds == 90
+                  color: seconds == current
                       ? AppColors.primary
                       : AppColors.textTertiary,
                 ),
-                onTap: () => Navigator.pop(ctx),
+                onTap: () {
+                  ref.read(defaultRestSecondsProvider.notifier)
+                      .setSeconds(seconds);
+                  Navigator.pop(ctx);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showIncrementPicker(BuildContext context, WidgetRef ref) {
+    final current = Units.stepDisplay;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Weight Increments',
+                style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            Text(
+              'How much the +/- buttons add or remove during logging (${Units.label}).',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
+            ),
+            const SizedBox(height: 12),
+            for (final inc in Units.incrementOptions)
+              ListTile(
+                title: Text(
+                    '${inc % 1 == 0 ? inc.toStringAsFixed(0) : inc.toStringAsFixed(1)} ${Units.label}'),
+                leading: Icon(
+                  inc == current
+                      ? LucideIcons.checkCircle
+                      : LucideIcons.circle,
+                  color:
+                      inc == current ? AppColors.primary : AppColors.textTertiary,
+                ),
+                onTap: () {
+                  ref.read(weightIncrementProvider.notifier).setIncrement(inc);
+                  Navigator.pop(ctx);
+                },
               ),
           ],
         ),

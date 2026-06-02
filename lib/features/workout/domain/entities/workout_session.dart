@@ -13,6 +13,10 @@ class WorkoutSession {
   final DateTime? endTime;
   final String? notes;
   final bool isCompleted;
+  // Program linkage (set when the session was started from a program day).
+  final String? programId;
+  final int? programWeek;
+  final String? programDayName;
 
   const WorkoutSession({
     required this.id,
@@ -24,6 +28,9 @@ class WorkoutSession {
     this.endTime,
     this.notes,
     this.isCompleted = false,
+    this.programId,
+    this.programWeek,
+    this.programDayName,
   });
 
   /// Duration of the workout
@@ -79,6 +86,9 @@ class WorkoutSession {
     DateTime? endTime,
     String? notes,
     bool? isCompleted,
+    String? programId,
+    int? programWeek,
+    String? programDayName,
   }) {
     return WorkoutSession(
       id: id ?? this.id,
@@ -90,6 +100,9 @@ class WorkoutSession {
       endTime: endTime ?? this.endTime,
       notes: notes ?? this.notes,
       isCompleted: isCompleted ?? this.isCompleted,
+      programId: programId ?? this.programId,
+      programWeek: programWeek ?? this.programWeek,
+      programDayName: programDayName ?? this.programDayName,
     );
   }
 
@@ -104,6 +117,9 @@ class WorkoutSession {
       'endTime': endTime?.toIso8601String(),
       'notes': notes,
       'isCompleted': isCompleted,
+      'programId': programId,
+      'programWeek': programWeek,
+      'programDayName': programDayName,
       'totalVolume': totalVolume,
       'totalSets': totalCompletedSets,
       'totalExercises': totalExercises,
@@ -126,6 +142,9 @@ class WorkoutSession {
           : null,
       notes: map['notes'] as String?,
       isCompleted: map['isCompleted'] as bool? ?? false,
+      programId: map['programId'] as String?,
+      programWeek: map['programWeek'] as int?,
+      programDayName: map['programDayName'] as String?,
     );
   }
 

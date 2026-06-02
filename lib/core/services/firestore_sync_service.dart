@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
+import 'package:strivo/features/programs/domain/entities/program.dart';
 
 /// Provider for the current Firebase Auth user
 final firebaseUserProvider = StreamProvider<User?>((ref) {
@@ -124,6 +125,46 @@ class FirestoreSyncService {
     }
   }
 
+  // ── Program Sync ──────────────────────────────────────────────
+
+  CollectionReference<Map<String, dynamic>> get _programsRef {
+    if (_userId == null) throw StateError('User not signed in');
+    return _db.collection('users').doc(_userId).collection('programs');
+  }
+
+  Future<void> syncProgram(Program program) async {
+    if (_userId == null) return;
+    try {
+      await _programsRef.doc(program.id).set(
+            {...program.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
+            SetOptions(merge: true),
+          );
+      debugPrint('☁️ Synced program: ${program.name}');
+    } catch (e) {
+      debugPrint('⚠️ Failed to sync program: $e');
+    }
+  }
+
+  Future<List<Program>> fetchPrograms() async {
+    if (_userId == null) return [];
+    try {
+      final snapshot = await _programsRef.get();
+      return snapshot.docs.map((doc) => Program.fromMap(doc.data())).toList();
+    } catch (e) {
+      debugPrint('⚠️ Failed to fetch programs: $e');
+      return [];
+    }
+  }
+
+  Future<void> deleteProgram(String programId) async {
+    if (_userId == null) return;
+    try {
+      await _programsRef.doc(programId).delete();
+    } catch (e) {
+      debugPrint('⚠️ Failed to delete program from cloud: $e');
+    }
+  }
+
   // ── Exercise History (PR Tracking) ────────────────────────────
 
   CollectionReference<Map<String, dynamic>> get _exerciseHistoryRef {
@@ -229,13 +270,18 @@ class FirestoreSyncService {
       await HiveService.saveRoutine(r);
     }
 
+    final programs = await fetchPrograms();
+    for (final pr in programs) {
+      await HiveService.saveProgram(pr);
+    }
+
     // Rebuild local exercise-history (PR cache) from restored sessions so PR
     // detection keeps working offline.
     _rebuildExerciseHistory(sessions);
 
     await HiveService.saveSetting('last_synced_uid', uid);
     debugPrint(
-        '☁️ Restored ${sessions.length} sessions, ${routines.length} routines from cloud');
+        '☁️ Restored ${sessions.length} sessions, ${routines.length} routines, ${programs.length} programs from cloud');
     return (sessions: sessions.length, routines: routines.length);
   }
 
@@ -248,6 +294,9 @@ class FirestoreSyncService {
     }
     for (final r in HiveService.getAllRoutines()) {
       await syncRoutine(r);
+    }
+    for (final pr in HiveService.getAllPrograms()) {
+      await syncProgram(pr);
     }
     await HiveService.saveSetting('last_synced_uid', _userId!);
   }

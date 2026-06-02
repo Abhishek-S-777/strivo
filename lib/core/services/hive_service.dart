@@ -3,6 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
+import 'package:strivo/features/programs/domain/entities/program.dart';
 
 /// Hive box names
 class HiveBoxes {
@@ -12,6 +13,7 @@ class HiveBoxes {
   static const String activeWorkout = 'active_workout';
   static const String settings = 'settings';
   static const String exerciseHistory = 'exercise_history';
+  static const String programs = 'programs';
 }
 
 class HiveService {
@@ -21,6 +23,7 @@ class HiveService {
   static late Box<String> _activeWorkoutBox;
   static late Box<String> _settingsBox;
   static late Box<String> _exerciseHistoryBox;
+  static late Box<String> _programsBox;
 
   static Future<void> init() async {
     _sessionsBox = await Hive.openBox<String>(HiveBoxes.sessions);
@@ -29,6 +32,7 @@ class HiveService {
     _activeWorkoutBox = await Hive.openBox<String>(HiveBoxes.activeWorkout);
     _settingsBox = await Hive.openBox<String>(HiveBoxes.settings);
     _exerciseHistoryBox = await Hive.openBox<String>(HiveBoxes.exerciseHistory);
+    _programsBox = await Hive.openBox<String>(HiveBoxes.programs);
 
     // Seed default exercises if first launch
     if (_exercisesBox.isEmpty) {
@@ -153,6 +157,39 @@ class HiveService {
     return jsonDecode(json) as Map<String, dynamic>;
   }
 
+  // ── Programs ──
+  static Future<void> saveProgram(Program program) async {
+    await _programsBox.put(program.id, jsonEncode(program.toMap()));
+  }
+
+  static Future<void> deleteProgram(String id) async {
+    await _programsBox.delete(id);
+  }
+
+  static List<Program> getAllPrograms() {
+    return _programsBox.values
+        .map((json) =>
+            Program.fromMap(jsonDecode(json) as Map<String, dynamic>))
+        .toList()
+      ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  }
+
+  static Program? getProgram(String id) {
+    final json = _programsBox.get(id);
+    if (json == null) return null;
+    return Program.fromMap(jsonDecode(json) as Map<String, dynamic>);
+  }
+
+  static String? getActiveProgramId() => _settingsBox.get('active_program_id');
+
+  static Future<void> setActiveProgramId(String? id) async {
+    if (id == null) {
+      await _settingsBox.delete('active_program_id');
+    } else {
+      await _settingsBox.put('active_program_id', id);
+    }
+  }
+
   // ── Settings ──
   static Future<void> saveSetting(String key, String value) async {
     await _settingsBox.put(key, value);
@@ -171,6 +208,8 @@ class HiveService {
     await _routinesBox.clear();
     await _exerciseHistoryBox.clear();
     await _activeWorkoutBox.clear();
+    await _programsBox.clear();
+    await _settingsBox.delete('active_program_id');
   }
 
   // ── Seed Data ──

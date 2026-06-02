@@ -6,6 +6,7 @@ import 'package:strivo/features/workout/presentation/screens/active_workout_scre
 import 'package:strivo/features/workout/presentation/screens/workout_summary_screen.dart';
 import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
 import 'package:strivo/features/routines/presentation/screens/routine_builder_screen.dart';
+import 'package:strivo/features/programs/presentation/screens/program_builder_screen.dart';
 import 'package:strivo/features/analytics/presentation/screens/analytics_screen.dart';
 import 'package:strivo/features/analytics/presentation/screens/exercise_history_screen.dart';
 import 'package:strivo/features/profile/presentation/screens/profile_screen.dart';
@@ -110,6 +111,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final routineId = state.uri.queryParameters['routineId'];
           return RoutineBuilderScreen(routineId: routineId);
+        },
+      ),
+      GoRoute(
+        path: '/programs/builder',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final programId = state.uri.queryParameters['programId'];
+          return ProgramBuilderScreen(programId: programId);
         },
       ),
       GoRoute(

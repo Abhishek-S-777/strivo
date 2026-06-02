@@ -27,11 +27,38 @@ class Units {
   static bool get isLbs => unit == WeightUnit.lbs;
   static String get label => isLbs ? 'lbs' : 'kg';
 
-  /// Stepper micro-increment, expressed in kg (2.5 kg, or 5 lbs in lbs mode).
-  static double get stepKg => isLbs ? 5 / _lbsPerKg : 2.5;
+  // ── Stepper increment ──────────────────────────────────────────
+  // Stored per-unit (in display units) so each unit keeps a sensible value.
+  static double? _incKg = _loadInc('inc_kg');
+  static double? _incLbs = _loadInc('inc_lbs');
 
-  /// What the +/- stepper adds in the *display* unit (for labels like "±5 lbs").
-  static double get stepDisplay => isLbs ? 5 : 2.5;
+  static double? _loadInc(String key) {
+    final v = HiveService.getSetting(key);
+    return v == null ? null : double.tryParse(v);
+  }
+
+  /// What the +/- stepper adds in the *display* unit (default 2.5 kg / 5 lbs).
+  static double get stepDisplay => isLbs ? (_incLbs ?? 5.0) : (_incKg ?? 2.5);
+
+  /// Stepper micro-increment expressed in kg.
+  static double get stepKg => toKg(stepDisplay);
+
+  /// Increment label for the settings row, e.g. "2.5 kg" / "5 lbs".
+  static String get incrementLabel => '${_trim(stepDisplay)} $label';
+
+  /// Sensible increment choices for the current unit.
+  static List<double> get incrementOptions =>
+      isLbs ? const [1.0, 2.5, 5.0, 10.0] : const [0.5, 1.0, 2.5, 5.0];
+
+  static void setIncrementDisplay(double v) {
+    if (isLbs) {
+      _incLbs = v;
+      HiveService.saveSetting('inc_lbs', v.toString());
+    } else {
+      _incKg = v;
+      HiveService.saveSetting('inc_kg', v.toString());
+    }
+  }
 
   static double fromKg(double kg) => isLbs ? kg * _lbsPerKg : kg;
   static double toKg(double display) => isLbs ? display / _lbsPerKg : display;
@@ -70,5 +97,21 @@ class WeightUnitNotifier extends StateNotifier<WeightUnit> {
     Units.unit = u;
     HiveService.saveSetting('weight_unit', u.name);
     state = u;
+  }
+}
+
+/// Drives rebuilds when the +/- stepper increment changes. UI reads the
+/// formatted value from [Units] (single source of truth); this just signals.
+final weightIncrementProvider =
+    StateNotifierProvider<WeightIncrementNotifier, double>((ref) {
+  return WeightIncrementNotifier();
+});
+
+class WeightIncrementNotifier extends StateNotifier<double> {
+  WeightIncrementNotifier() : super(Units.stepDisplay);
+
+  void setIncrement(double displayValue) {
+    Units.setIncrementDisplay(displayValue);
+    state = displayValue;
   }
 }

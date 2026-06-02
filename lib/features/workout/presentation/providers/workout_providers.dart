@@ -9,6 +9,26 @@ import 'package:strivo/features/workout/domain/entities/exercise_set.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
+import 'package:strivo/features/programs/domain/entities/program.dart';
+import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
+
+// ── Default Rest Timer (user setting) ──
+final defaultRestSecondsProvider =
+    StateNotifierProvider<DefaultRestNotifier, int>((ref) {
+  return DefaultRestNotifier();
+});
+
+class DefaultRestNotifier extends StateNotifier<int> {
+  DefaultRestNotifier() : super(_load());
+
+  static int _load() =>
+      int.tryParse(HiveService.getSetting('default_rest_seconds') ?? '') ?? 90;
+
+  void setSeconds(int seconds) {
+    HiveService.saveSetting('default_rest_seconds', seconds.toString());
+    state = seconds;
+  }
+}
 
 // ── Workout Sessions Provider ──
 final workoutSessionsProvider =
@@ -40,6 +60,16 @@ class WorkoutSessionsNotifier extends StateNotifier<List<WorkoutSession>> {
 
   WorkoutSession? getLastSessionForRoutine(String routineId) {
     return HiveService.getLastSessionByRoutine(routineId);
+  }
+
+  WorkoutSession? getLastSessionForProgramDay(
+      String programId, String dayName) {
+    return HiveService.getAllSessions()
+        .where((s) =>
+            s.isCompleted &&
+            s.programId == programId &&
+            s.programDayName == dayName)
+        .firstOrNull;
   }
 
   List<WorkoutSession> getSessionsInRange(DateTime start, DateTime end) {
@@ -78,6 +108,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
   /// Start a new workout (empty or from routine)
   void startWorkout({Routine? routine}) {
     final now = DateTime.now();
+    final defaultRest = _ref.read(defaultRestSecondsProvider);
 
     List<WorkoutExercise> exercises = [];
 
@@ -116,7 +147,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
           exercise: re.exercise,
           sets: sets,
           order: re.order,
-          restSeconds: re.restSeconds ?? 90,
+          restSeconds: re.restSeconds ?? defaultRest,
           notes: re.notes,
         );
       }).toList();
@@ -133,6 +164,70 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
 
     _startAutoSave();
     HiveService.saveActiveWorkout(state!);
+  }
+
+  /// Start the active program's current day. Prescribes this week's
+  /// sets/reps/RPE from the program, and pre-fills the load from the lifter's
+  /// most recent performance of each exercise so they progress on weight.
+  void startProgramDay(Program program) {
+    final day = program.currentDay;
+    if (day == null) return;
+    final now = DateTime.now();
+    final week = program.currentWeek;
+    final defaultRest = _ref.read(defaultRestSecondsProvider);
+
+    final exercises = day.exercises.asMap().entries.map((entry) {
+      final pe = entry.value;
+      final target = pe.targetForWeek(week);
+      final lastWeight = _lastWeightFor(pe.exercise.id);
+      final sets = List.generate(
+        target.sets.clamp(1, 20),
+        (i) => ExerciseSet(
+          id: IdGenerator.generate(),
+          setNumber: i + 1,
+          weight: lastWeight,
+          reps: target.repsMin,
+          rpe: target.rpe,
+        ),
+      );
+      return WorkoutExercise(
+        id: IdGenerator.generate(),
+        exercise: pe.exercise,
+        sets: sets,
+        order: entry.key,
+        restSeconds: defaultRest,
+      );
+    }).toList();
+
+    state = WorkoutSession(
+      id: IdGenerator.generate(),
+      name: day.name,
+      exercises: exercises,
+      startTime: now,
+      programId: program.id,
+      programWeek: week,
+      programDayName: day.name,
+    );
+
+    _startAutoSave();
+    HiveService.saveActiveWorkout(state!);
+  }
+
+  /// Most recent working-set weight (kg) used for an exercise, for pre-fill.
+  double _lastWeightFor(String exerciseId) {
+    for (final session in HiveService.getAllSessions()) {
+      final we = session.exercises
+          .where((e) => e.exercise.id == exerciseId)
+          .firstOrNull;
+      if (we == null) continue;
+      final done =
+          we.sets.where((s) => s.isCompleted && !s.isWarmup).toList();
+      final pool = done.isNotEmpty ? done : we.sets;
+      if (pool.isNotEmpty) {
+        return pool.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
+      }
+    }
+    return 0;
   }
 
   /// Add exercise to active workout
@@ -169,7 +264,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
       exercise: exercise,
       sets: sets,
       order: state!.exercises.length,
-      restSeconds: 90,
+      restSeconds: _ref.read(defaultRestSecondsProvider),
     );
 
     state = state!.copyWith(
@@ -299,6 +394,11 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
         await HiveService.saveRoutine(updated);
         FirestoreSyncService.instance.syncRoutine(updated);
       }
+    }
+
+    // Advance the program pointer if this came from a program day.
+    if (completed.programId != null) {
+      await _ref.read(programsProvider.notifier).advance(completed.programId!);
     }
 
     // Clear active workout

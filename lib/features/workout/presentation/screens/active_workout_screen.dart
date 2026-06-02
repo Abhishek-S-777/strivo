@@ -8,6 +8,7 @@ import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/workout/domain/entities/exercise_set.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
+import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/features/workout/presentation/widgets/exercise_picker_sheet.dart';
 import 'package:strivo/features/workout/presentation/widgets/rest_timer_widget.dart';
@@ -111,8 +112,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                           return _ExerciseCard(
                             key: ValueKey(exercise.id),
                             workoutExercise: exercise,
-                            previousExercise: _getPreviousExercise(
-                                workout.routineId, exercise),
+                            previousExercise:
+                                _getPreviousExercise(workout, exercise),
                             onSetCompleted: (setId) {
                               ref
                                   .read(activeWorkoutProvider.notifier)
@@ -124,8 +125,8 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                               if (!set.isCompleted) {
                                 ref
                                     .read(restTimerProvider.notifier)
-                                    .startTimer(
-                                        exercise.restSeconds ?? 90);
+                                    .startTimer(exercise.restSeconds ??
+                                        ref.read(defaultRestSecondsProvider));
                               }
                             },
                             onSetUpdated: (setId, newSet) {
@@ -172,10 +173,15 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   WorkoutExercise? _getPreviousExercise(
-      String? routineId, WorkoutExercise current) {
-    if (routineId == null) return null;
-    final lastSession =
-        ref.read(workoutSessionsProvider.notifier).getLastSessionForRoutine(routineId);
+      WorkoutSession workout, WorkoutExercise current) {
+    final notifier = ref.read(workoutSessionsProvider.notifier);
+    WorkoutSession? lastSession;
+    if (workout.programId != null && workout.programDayName != null) {
+      lastSession = notifier.getLastSessionForProgramDay(
+          workout.programId!, workout.programDayName!);
+    } else if (workout.routineId != null) {
+      lastSession = notifier.getLastSessionForRoutine(workout.routineId!);
+    }
     if (lastSession == null) return null;
     return lastSession.exercises
         .where((e) => e.exercise.id == current.exercise.id)
