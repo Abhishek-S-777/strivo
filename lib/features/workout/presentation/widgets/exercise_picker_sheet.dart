@@ -135,6 +135,9 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
                         exercise: exercise,
                         onTap: () =>
                             widget.onExerciseSelected(exercise),
+                        onShowAlternatives: exercise.hasAlternatives
+                            ? () => _showAlternatives(exercise, allExercises)
+                            : null,
                       );
                     },
                   ),
@@ -163,6 +166,27 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
     }
 
     return result;
+  }
+
+  /// Show this exercise's alternatives (e.g. when the required machine isn't
+  /// available). Picking one selects it in place of the original.
+  Future<void> _showAlternatives(
+      Exercise base, List<Exercise> all) async {
+    final byId = {for (final e in all) e.id: e};
+    final alts = [
+      for (final id in base.alternativeIds)
+        if (byId[id] != null) byId[id]!
+    ];
+    if (alts.isEmpty) return;
+    final chosen = await showModalBottomSheet<Exercise>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AlternativesSheet(base: base, alternatives: alts),
+    );
+    if (chosen != null) widget.onExerciseSelected(chosen);
   }
 
   void _showCreateExerciseDialog(BuildContext context) {
@@ -277,10 +301,12 @@ class _FilterChip extends StatelessWidget {
 class _ExerciseListItem extends StatelessWidget {
   final Exercise exercise;
   final VoidCallback onTap;
+  final VoidCallback? onShowAlternatives;
 
   const _ExerciseListItem({
     required this.exercise,
     required this.onTap,
+    this.onShowAlternatives,
   });
 
   @override
@@ -299,8 +325,8 @@ class _ExerciseListItem extends StatelessWidget {
                 color: AppColors.surfaceLight,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(
-                _getEquipmentIcon(exercise.equipment),
+              child: const Icon(
+                LucideIcons.dumbbell,
                 size: 20,
                 color: AppColors.primary,
               ),
@@ -344,33 +370,82 @@ class _ExerciseListItem extends StatelessWidget {
                       ),
                 ),
               ),
-            const SizedBox(width: 4),
-            Icon(LucideIcons.plus,
+            if (onShowAlternatives != null)
+              IconButton(
+                tooltip: 'Alternatives',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: const Icon(LucideIcons.repeat,
+                    size: 16, color: AppColors.primary),
+                onPressed: onShowAlternatives,
+              ),
+            const SizedBox(width: 8),
+            const Icon(LucideIcons.plus,
                 size: 18, color: AppColors.textTertiary),
           ],
         ),
       ),
     );
   }
+}
 
-  IconData _getEquipmentIcon(Equipment equipment) {
-    switch (equipment) {
-      case Equipment.barbell:
-        return LucideIcons.zap;
-      case Equipment.dumbbell:
-        return LucideIcons.dumbbell;
-      case Equipment.machine:
-        return LucideIcons.settings;
-      case Equipment.cable:
-        return LucideIcons.link2;
-      case Equipment.bodyweight:
-        return LucideIcons.user;
-      case Equipment.kettlebell:
-        return LucideIcons.diamond;
-      case Equipment.band:
-        return LucideIcons.activity;
-      case Equipment.other:
-        return LucideIcons.circle;
-    }
+/// Bottom sheet listing an exercise's alternatives — shown when the primary
+/// machine/setup isn't available. Selecting one pops with that [Exercise].
+class _AlternativesSheet extends StatelessWidget {
+  final Exercise base;
+  final List<Exercise> alternatives;
+
+  const _AlternativesSheet({
+    required this.base,
+    required this.alternatives,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Alternatives', style: theme.textTheme.headlineSmall),
+            const SizedBox(height: 2),
+            Text(
+              'Swap in for ${base.name} if it isn\'t available.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
+            ),
+            const SizedBox(height: 12),
+            ...alternatives.map(
+              (alt) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(LucideIcons.dumbbell,
+                      size: 20, color: AppColors.primary),
+                ),
+                title: Text(alt.name, style: theme.textTheme.titleSmall),
+                subtitle: Text(
+                  '${alt.primaryMuscle.displayName} • ${alt.equipment.displayName}',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: AppColors.textTertiary),
+                ),
+                trailing: const Icon(LucideIcons.plus,
+                    size: 18, color: AppColors.textTertiary),
+                onTap: () => Navigator.pop(context, alt),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

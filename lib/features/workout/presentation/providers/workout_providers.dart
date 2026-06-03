@@ -602,6 +602,18 @@ class ExerciseLibraryNotifier extends StateNotifier<List<Exercise>> {
   Future<void> addExercise(Exercise exercise) async {
     await HiveService.saveExercise(exercise);
     state = HiveService.getAllExercises();
+    // Back up custom exercises to the cloud so they survive uninstall and reach
+    // other devices (built-ins ship with the app and don't need syncing).
+    if (exercise.isCustom) {
+      FirestoreSyncService.instance.syncExercise(exercise);
+    }
+  }
+
+  /// Resolve a list of exercise ids against the current library (used for an
+  /// exercise's alternatives). Unknown ids are skipped.
+  List<Exercise> resolveByIds(List<String> ids) {
+    final byId = {for (final e in state) e.id: e};
+    return [for (final id in ids) if (byId[id] != null) byId[id]!];
   }
 
   List<Exercise> searchExercises(String query) {

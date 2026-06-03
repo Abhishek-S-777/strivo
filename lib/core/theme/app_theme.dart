@@ -156,6 +156,25 @@ class AppTheme {
         thickness: 0.5,
         space: 0,
       ),
+      // Switches: on-state keeps the Material default (navy thumb on the
+      // periwinkle track). Off-state previously rendered an almost-invisible
+      // thumb on the dark surface, so force a near-white thumb when off.
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColors.onPrimary;
+          return AppColors.textPrimary;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColors.primary;
+          return AppColors.surfaceLight;
+        }),
+        trackOutlineColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Colors.transparent;
+          }
+          return AppColors.borderLight;
+        }),
+      ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceLight,
         selectedColor: AppColors.primary.withAlpha(30),

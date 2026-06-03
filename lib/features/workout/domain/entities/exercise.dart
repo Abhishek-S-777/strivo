@@ -86,6 +86,11 @@ class Exercise {
   final String? notes;
   final bool isCustom;
 
+  /// Ids of exercises that can substitute for this one when the required
+  /// machine/setup isn't available (e.g. Jeff Nippard's per-exercise
+  /// alternatives). Resolve against the exercise library by id.
+  final List<String> alternativeIds;
+
   const Exercise({
     required this.id,
     required this.name,
@@ -94,7 +99,10 @@ class Exercise {
     required this.equipment,
     this.notes,
     this.isCustom = false,
+    this.alternativeIds = const [],
   });
+
+  bool get hasAlternatives => alternativeIds.isNotEmpty;
 
   Map<String, dynamic> toMap() {
     return {
@@ -105,6 +113,7 @@ class Exercise {
       'equipment': equipment.name,
       'notes': notes,
       'isCustom': isCustom,
+      'alternativeIds': alternativeIds,
     };
   }
 
@@ -128,6 +137,10 @@ class Exercise {
       ),
       notes: map['notes'] as String?,
       isCustom: map['isCustom'] as bool? ?? false,
+      alternativeIds: (map['alternativeIds'] as List?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
     );
   }
 
@@ -139,6 +152,7 @@ class Exercise {
     Equipment? equipment,
     String? notes,
     bool? isCustom,
+    List<String>? alternativeIds,
   }) {
     return Exercise(
       id: id ?? this.id,
@@ -148,6 +162,7 @@ class Exercise {
       equipment: equipment ?? this.equipment,
       notes: notes ?? this.notes,
       isCustom: isCustom ?? this.isCustom,
+      alternativeIds: alternativeIds ?? this.alternativeIds,
     );
   }
 

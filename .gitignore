@@ -21,6 +21,11 @@ migrate_working_dir/
 # Claude Code / agent local files
 .claude/
 
+# Firebase service-account keys (never commit admin credentials)
+**/serviceAccountKey.json
+**/service-account*.json
+tools/**/node_modules/
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
@@ -35,6 +40,10 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
+/node_modules/
+/tools/
+package-lock.json
+package.json
 
 # Symbolication related
 app.*.symbols

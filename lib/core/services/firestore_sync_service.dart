@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
+import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 
 /// Provider for the current Firebase Auth user
@@ -165,6 +166,41 @@ class FirestoreSyncService {
     }
   }
 
+  // ── Exercise Library Sync (custom exercises only) ─────────────
+
+  CollectionReference<Map<String, dynamic>> get _exercisesRef {
+    if (_userId == null) throw StateError('User not signed in');
+    return _db.collection('users').doc(_userId).collection('exercises');
+  }
+
+  /// Back up a *custom* exercise. Built-in (seeded) exercises ship with the
+  /// app and don't need per-user storage, so only user-created ones are
+  /// persisted to the cloud — surviving uninstall and reaching new devices.
+  Future<void> syncExercise(Exercise exercise) async {
+    if (_userId == null || !exercise.isCustom) return;
+    try {
+      await _exercisesRef.doc(exercise.id).set(
+            {...exercise.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
+            SetOptions(merge: true),
+          );
+      debugPrint('☁️ Synced exercise: ${exercise.name}');
+    } catch (e) {
+      debugPrint('⚠️ Failed to sync exercise: $e');
+    }
+  }
+
+  /// Fetch the user's custom exercises from Firestore.
+  Future<List<Exercise>> fetchExercises() async {
+    if (_userId == null) return [];
+    try {
+      final snapshot = await _exercisesRef.get();
+      return snapshot.docs.map((doc) => Exercise.fromMap(doc.data())).toList();
+    } catch (e) {
+      debugPrint('⚠️ Failed to fetch exercises: $e');
+      return [];
+    }
+  }
+
   // ── Exercise History (PR Tracking) ────────────────────────────
 
   CollectionReference<Map<String, dynamic>> get _exerciseHistoryRef {
@@ -275,6 +311,18 @@ class FirestoreSyncService {
       await HiveService.saveProgram(pr);
     }
 
+    // Restore the user's custom exercises (built-ins come from the app seed).
+    final exercises = await fetchExercises();
+    for (final ex in exercises) {
+      await HiveService.saveExercise(ex);
+    }
+
+    // Safety net: re-add any exercise embedded in restored
+    // sessions/routines/programs that isn't in the local library — e.g.
+    // customs created before cloud exercise-sync existed — so the picker and
+    // history keep resolving them.
+    await _restoreEmbeddedExercises(sessions, routines, programs);
+
     // Rebuild local exercise-history (PR cache) from restored sessions so PR
     // detection keeps working offline.
     _rebuildExerciseHistory(sessions);
@@ -298,7 +346,51 @@ class FirestoreSyncService {
     for (final pr in HiveService.getAllPrograms()) {
       await syncProgram(pr);
     }
+    for (final ex in HiveService.getAllExercises().where((e) => e.isCustom)) {
+      await syncExercise(ex);
+    }
     await HiveService.saveSetting('last_synced_uid', _userId!);
+  }
+
+  /// Re-add any exercise embedded in the given records whose id is missing
+  /// from the local library, so it resolves in the picker/history again.
+  /// Unknown ids are marked custom (they aren't built-ins) so they also get
+  /// backed up on the next sync.
+  Future<void> _restoreEmbeddedExercises(
+    List<WorkoutSession> sessions,
+    List<Routine> routines,
+    List<Program> programs,
+  ) async {
+    final known = HiveService.getAllExercises().map((e) => e.id).toSet();
+    final seen = <String>{};
+    final toAdd = <Exercise>[];
+
+    void consider(Exercise e) {
+      if (known.contains(e.id) || !seen.add(e.id)) return;
+      toAdd.add(e.isCustom ? e : e.copyWith(isCustom: true));
+    }
+
+    for (final s in sessions) {
+      for (final we in s.exercises) {
+        consider(we.exercise);
+      }
+    }
+    for (final r in routines) {
+      for (final re in r.exercises) {
+        consider(re.exercise);
+      }
+    }
+    for (final p in programs) {
+      for (final d in p.days) {
+        for (final pe in d.exercises) {
+          consider(pe.exercise);
+        }
+      }
+    }
+
+    for (final e in toAdd) {
+      await HiveService.saveExercise(e);
+    }
   }
 
   void _rebuildExerciseHistory(List<WorkoutSession> sessions) {
