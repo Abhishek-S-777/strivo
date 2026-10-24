@@ -11,6 +11,8 @@ class WeeklyStats {
   final double volumeDiffPercent;
   final String trend; // 'increase', 'decrease', 'stagnant'
   final List<WorkoutSession> sessions;
+  final DateTime weekStart; // Monday 00:00 of the displayed week
+  final int weekOffset; // 0 = current week, -1 = last week, …
 
   const WeeklyStats({
     this.workoutCount = 0,
@@ -21,6 +23,8 @@ class WeeklyStats {
     this.volumeDiffPercent = 0,
     this.trend = 'stagnant',
     this.sessions = const [],
+    required this.weekStart,
+    this.weekOffset = 0,
   });
 }
 
@@ -58,23 +62,52 @@ class ExerciseProgressPoint {
   });
 }
 
-// ── Weekly Stats Provider ──
-final weeklyStatsProvider = Provider<WeeklyStats>((ref) {
+// ── Weekly Stats Providers ──
+// A given ISO week, addressable by offset (0 = current, -1 = last week, …),
+// so the Analytics hero card can be swiped back through training history.
+final weeklyStatsForWeekProvider =
+    Provider.family<WeeklyStats, int>((ref, weekOffset) {
   final sessions = ref.watch(workoutSessionsProvider);
-  return _calculateWeeklyStats(sessions);
+  return _calculateWeeklyStats(sessions, weekOffset);
 });
 
-WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions) {
-  final now = DateTime.now();
-  final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+final weeklyStatsProvider =
+    Provider<WeeklyStats>((ref) => ref.watch(weeklyStatsForWeekProvider(0)));
+
+/// Furthest week back (as a negative offset) that has any completed workout —
+/// the swipe boundary so the user can't page into empty pre-history.
+final earliestTrainedWeekOffsetProvider = Provider<int>((ref) {
+  final sessions = ref.watch(workoutSessionsProvider);
+  final currentMonday = _mondayOf(DateTime.now());
+  int earliest = 0;
+  for (final s in sessions.where((s) => s.isCompleted)) {
+    final weeks =
+        (currentMonday.difference(_mondayOf(s.startTime)).inDays / 7).round();
+    if (-weeks < earliest) earliest = -weeks;
+  }
+  return earliest;
+});
+
+DateTime _mondayOf(DateTime date) {
+  final d = DateTime(date.year, date.month, date.day);
+  return d.subtract(Duration(days: d.weekday - 1));
+}
+
+WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions,
+    [int weekOffset = 0]) {
   final startOfWeekDate =
-      DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day);
+      _mondayOf(DateTime.now()).add(Duration(days: 7 * weekOffset));
+  final endOfWeekDate = startOfWeekDate.add(const Duration(days: 7));
   final startOfLastWeek = startOfWeekDate.subtract(const Duration(days: 7));
 
-  // Inclusive of Monday 00:00 (matches the insights engine's week boundary)
-  // so the first workout of the week is never dropped.
+  // [Monday 00:00, next Monday 00:00) — inclusive of Monday so the first
+  // workout of the week is never dropped (matches the insights engine), and
+  // bounded above so a past week excludes later sessions.
   final thisWeekSessions = allSessions
-      .where((s) => s.isCompleted && !s.startTime.isBefore(startOfWeekDate))
+      .where((s) =>
+          s.isCompleted &&
+          !s.startTime.isBefore(startOfWeekDate) &&
+          s.startTime.isBefore(endOfWeekDate))
       .toList();
 
   final lastWeekSessions = allSessions
@@ -118,6 +151,8 @@ WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions) {
     volumeDiffPercent: volumeDiffPercent,
     trend: trend,
     sessions: thisWeekSessions,
+    weekStart: startOfWeekDate,
+    weekOffset: weekOffset,
   );
 }
 

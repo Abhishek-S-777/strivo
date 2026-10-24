@@ -184,13 +184,14 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _AlternativesSheet(base: base, alternatives: alts),
+      builder: (_) => AlternativesSheet(base: base, alternatives: alts),
     );
     if (chosen != null) widget.onExerciseSelected(chosen);
   }
 
   void _showCreateExerciseDialog(BuildContext context) {
     final nameController = TextEditingController();
+    final videoController = TextEditingController();
     MuscleGroup selectedMuscle = MuscleGroup.chest;
     Equipment selectedEquipment = Equipment.barbell;
 
@@ -230,6 +231,15 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
                     .toList(),
                 onChanged: (v) => setState(() => selectedEquipment = v!),
               ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: videoController,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'Video link (optional)',
+                  hintText: 'https://youtu.be/…',
+                ),
+              ),
             ],
           ),
           actions: [
@@ -240,12 +250,14 @@ class _ExercisePickerSheetState extends ConsumerState<ExercisePickerSheet> {
             ElevatedButton(
               onPressed: () {
                 if (nameController.text.trim().isEmpty) return;
+                final video = videoController.text.trim();
                 final exercise = Exercise(
                   id: IdGenerator.generate(),
                   name: nameController.text.trim(),
                   primaryMuscle: selectedMuscle,
                   equipment: selectedEquipment,
                   isCustom: true,
+                  videoUrl: video.isEmpty ? null : video,
                 );
                 ref
                     .read(exerciseLibraryProvider.notifier)
@@ -392,11 +404,12 @@ class _ExerciseListItem extends StatelessWidget {
 
 /// Bottom sheet listing an exercise's alternatives — shown when the primary
 /// machine/setup isn't available. Selecting one pops with that [Exercise].
-class _AlternativesSheet extends StatelessWidget {
+class AlternativesSheet extends StatelessWidget {
   final Exercise base;
   final List<Exercise> alternatives;
 
-  const _AlternativesSheet({
+  const AlternativesSheet({
+    super.key,
     required this.base,
     required this.alternatives,
   });

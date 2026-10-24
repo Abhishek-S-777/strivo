@@ -59,10 +59,10 @@ class RoutineExercise {
     return RoutineExercise(
       id: map['id'] as String,
       exercise: Exercise.fromMap(map['exercise'] as Map<String, dynamic>),
-      targetSets: map['targetSets'] as int,
-      targetReps: map['targetReps'] as int,
-      order: map['order'] as int,
-      restSeconds: map['restSeconds'] as int?,
+      targetSets: (map['targetSets'] as num).toInt(),
+      targetReps: (map['targetReps'] as num).toInt(),
+      order: (map['order'] as num).toInt(),
+      restSeconds: (map['restSeconds'] as num?)?.toInt(),
       notes: map['notes'] as String?,
     );
   }

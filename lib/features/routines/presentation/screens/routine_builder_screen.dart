@@ -6,7 +6,9 @@ import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/utils/id_generator.dart';
+import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
+import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/features/workout/presentation/widgets/exercise_picker_sheet.dart';
 import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
 
@@ -184,6 +186,7 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
                                   re.copyWith(targetReps: reps);
                             });
                           },
+                          onEditVideo: () => _editVideo(index),
                           onRemove: () {
                             setState(() {
                               _exercises.removeAt(index);
@@ -235,6 +238,82 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
     );
   }
 
+  /// Rebuild an exercise with a new (nullable) video URL. Uses the constructor
+  /// rather than copyWith so a null actually *clears* the link.
+  Exercise _withVideo(Exercise e, String? url) => Exercise(
+        id: e.id,
+        name: e.name,
+        primaryMuscle: e.primaryMuscle,
+        secondaryMuscle: e.secondaryMuscle,
+        equipment: e.equipment,
+        notes: e.notes,
+        isCustom: e.isCustom,
+        alternativeIds: e.alternativeIds,
+        videoUrl: url,
+      );
+
+  /// Attach / edit / clear a tutorial video link for a routine exercise. The
+  /// link is saved both on the routine and back to the exercise library so it
+  /// shows up everywhere the exercise appears.
+  Future<void> _editVideo(int index) async {
+    final re = _exercises[index];
+    final controller =
+        TextEditingController(text: re.exercise.videoUrl ?? '');
+    final hadVideo = re.exercise.hasVideo;
+
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Video · ${re.exercise.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'YouTube / video link',
+                hintText: 'https://youtu.be/…',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Leave empty to use an automatic YouTube search when you tap "watch" during a workout.',
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: AppColors.textTertiary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          if (hadVideo)
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ''),
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Clear'),
+            ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null) return; // cancelled
+    final updated = _withVideo(re.exercise, result.isEmpty ? null : result);
+    setState(() => _exercises[index] = re.copyWith(exercise: updated));
+    // Persist to the library too (and cloud-sync custom exercises).
+    ref.read(exerciseLibraryProvider.notifier).addExercise(updated);
+  }
+
   void _saveRoutine() {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -275,6 +354,7 @@ class _RoutineExerciseItem extends StatelessWidget {
   final RoutineExercise routineExercise;
   final Function(int) onSetsChanged;
   final Function(int) onRepsChanged;
+  final VoidCallback onEditVideo;
   final VoidCallback onRemove;
 
   const _RoutineExerciseItem({
@@ -282,6 +362,7 @@ class _RoutineExerciseItem extends StatelessWidget {
     required this.routineExercise,
     required this.onSetsChanged,
     required this.onRepsChanged,
+    required this.onEditVideo,
     required this.onRemove,
   });
 
@@ -311,13 +392,25 @@ class _RoutineExerciseItem extends StatelessWidget {
                   routineExercise.exercise.name,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  routineExercise.exercise.equipment.displayName,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        routineExercise.exercise.equipment.displayName,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: AppColors.textTertiary),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _VideoChip(
+                      hasVideo: routineExercise.exercise.hasVideo,
+                      onTap: onEditVideo,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -350,6 +443,38 @@ class _RoutineExerciseItem extends StatelessWidget {
             onTap: onRemove,
             child: Icon(LucideIcons.x,
                 size: 18, color: AppColors.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tappable "video" affordance on a routine exercise row — the column where a
+/// tutorial link is attached. Highlights when a link is set.
+class _VideoChip extends StatelessWidget {
+  final bool hasVideo;
+  final VoidCallback onTap;
+
+  const _VideoChip({required this.hasVideo, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = hasVideo ? AppColors.primary : AppColors.textTertiary;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(LucideIcons.youtube, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(
+            hasVideo ? 'Video' : 'Add video',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ],
       ),

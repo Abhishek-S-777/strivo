@@ -6,6 +6,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/units/weight_unit.dart';
+import 'package:strivo/core/utils/video_launcher.dart';
+import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/workout/domain/entities/exercise_set.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
@@ -154,6 +156,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                                   .read(activeWorkoutProvider.notifier)
                                   .updateExerciseNotes(exercise.id, notes);
                             },
+                            onWatchVideo: () =>
+                                _watchVideo(exercise.exercise),
+                            onSwap: () => _showAlternatives(exercise),
                           );
                         },
                       ),
@@ -200,6 +205,45 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         },
       ),
     );
+  }
+
+  /// Open a form/technique video for the exercise (pinned link or YouTube
+  /// search fallback), so the user can check technique without leaving flow.
+  Future<void> _watchVideo(Exercise exercise) async {
+    final ok = await ExerciseVideo.open(exercise);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open a video for this exercise')),
+      );
+    }
+  }
+
+  /// Show this exercise's alternatives and swap the chosen one in, in place —
+  /// the user-friendly "machine is taken" flow, right from the logging screen.
+  Future<void> _showAlternatives(WorkoutExercise we) async {
+    final alts = ref
+        .read(exerciseLibraryProvider.notifier)
+        .resolveByIds(we.exercise.alternativeIds);
+    if (alts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No alternatives listed for this exercise')),
+      );
+      return;
+    }
+    final chosen = await showModalBottomSheet<Exercise>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => AlternativesSheet(base: we.exercise, alternatives: alts),
+    );
+    if (chosen != null && mounted) {
+      ref.read(activeWorkoutProvider.notifier).replaceExercise(we.id, chosen);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Swapped to ${chosen.name}')),
+      );
+    }
   }
 
   Future<void> _finishWorkout(BuildContext context) async {
@@ -367,6 +411,8 @@ class _ExerciseCard extends StatefulWidget {
   final Function(String setId) onRemoveSet;
   final VoidCallback onRemoveExercise;
   final Function(String notes) onNotesChanged;
+  final VoidCallback onWatchVideo;
+  final VoidCallback onSwap;
 
   const _ExerciseCard({
     super.key,
@@ -378,6 +424,8 @@ class _ExerciseCard extends StatefulWidget {
     required this.onRemoveSet,
     required this.onRemoveExercise,
     required this.onNotesChanged,
+    required this.onWatchVideo,
+    required this.onSwap,
   });
 
   @override
@@ -444,17 +492,52 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                     ],
                   ),
                 ),
+                // Watch a form video (pinned link or YouTube search).
+                IconButton(
+                  tooltip: 'Watch video',
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  icon: const Icon(LucideIcons.youtube,
+                      size: 18, color: AppColors.textSecondary),
+                  onPressed: widget.onWatchVideo,
+                ),
+                // Swap for an alternative (only when the exercise has any).
+                if (exercise.exercise.hasAlternatives)
+                  IconButton(
+                    tooltip: 'Swap exercise',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 36, minHeight: 36),
+                    icon: const Icon(LucideIcons.repeat,
+                        size: 17, color: AppColors.primary),
+                    onPressed: widget.onSwap,
+                  ),
                 PopupMenuButton<String>(
                   icon: Icon(LucideIcons.moreVertical,
                       size: 18, color: AppColors.textTertiary),
                   onSelected: (value) {
-                    if (value == 'notes') {
+                    if (value == 'video') {
+                      widget.onWatchVideo();
+                    } else if (value == 'swap') {
+                      widget.onSwap();
+                    } else if (value == 'notes') {
                       setState(() => _showNotes = !_showNotes);
                     } else if (value == 'remove') {
                       widget.onRemoveExercise();
                     }
                   },
                   itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'video',
+                      child: Text('Watch Video'),
+                    ),
+                    if (exercise.exercise.hasAlternatives)
+                      const PopupMenuItem(
+                        value: 'swap',
+                        child: Text('Swap Exercise'),
+                      ),
                     const PopupMenuItem(
                       value: 'notes',
                       child: Text('Add Notes'),

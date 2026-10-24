@@ -272,6 +272,27 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     );
   }
 
+  /// Swap an exercise for an alternative mid-workout (e.g. the machine is
+  /// taken). Keeps the set/rep structure but re-prefills the load from the
+  /// alternative's own history and clears completion/PR flags (it's a new lift).
+  void replaceExercise(String workoutExerciseId, Exercise newExercise) {
+    if (state == null) return;
+    final lastWeight = _lastWeightFor(newExercise.id);
+    state = state!.copyWith(
+      exercises: state!.exercises.map((we) {
+        if (we.id != workoutExerciseId) return we;
+        final sets = we.sets
+            .map((s) => s.copyWith(
+                  weight: lastWeight > 0 ? lastWeight : s.weight,
+                  isCompleted: false,
+                  isPR: false,
+                ))
+            .toList();
+        return we.copyWith(exercise: newExercise, sets: sets);
+      }).toList(),
+    );
+  }
+
   /// Remove exercise from workout
   void removeExercise(String workoutExerciseId) {
     if (state == null) return;

@@ -143,7 +143,7 @@ class WorkoutSession {
       notes: map['notes'] as String?,
       isCompleted: map['isCompleted'] as bool? ?? false,
       programId: map['programId'] as String?,
-      programWeek: map['programWeek'] as int?,
+      programWeek: (map['programWeek'] as num?)?.toInt(),
       programDayName: map['programDayName'] as String?,
     );
   }

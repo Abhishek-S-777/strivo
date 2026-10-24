@@ -9,12 +9,13 @@ between them losslessly.
 
 | Box | Key | Value (JSON) |
 | --- | --- | --- |
-| `workout_sessions` | sessionId | `WorkoutSession` (embeds exercises → sets) |
+| `workout_sessions` | sessionId | `WorkoutSession` (embeds exercises → sets; may carry `programId`/`programWeek`/`programDayName`) |
 | `routines` | routineId | `Routine` (embeds routine exercises) |
+| `programs` | programId | `Program` (embeds days → exercises → per-week `SetTarget`s + position pointer) |
 | `exercises` | exerciseId | `Exercise` (template library, seeded + custom) |
 | `active_workout` | `"current"` | in-progress `WorkoutSession` (auto-saved every 10s) |
 | `exercise_history` | exerciseId | PR cache `{maxWeight, maxVolume, lastPerformed, exerciseName}` |
-| `settings` | key | string (e.g. `last_synced_uid`) |
+| `settings` | key | string (e.g. `last_synced_uid`, `weight_unit`) |
 | `progress_photos` | photoId | `ProgressPhoto` (image stored on disk, path referenced) |
 
 ## Cloud (Firestore)
@@ -35,9 +36,24 @@ users/{uid}                       ← profile + preferences
   │     id, name, description, color, timesUsed,
   │     createdAt, updatedAt, exercises:[...], syncedAt
   │
+  ├─ programs/{programId}         ← multi-week structured plans
+  │     id, name, durationWeeks (0 = ongoing rotation),
+  │     days:[ { name, exercises:[ { exercise,
+  │              weeklyTargets:[{sets,repsMin,repsMax,rpe}] } ] } ],
+  │     currentWeek, currentDayIndex, isComplete, syncedAt
+  │
+  ├─ exercises/{exerciseId}       ← user's CUSTOM exercises only
+  │     id, name, primaryMuscle, secondaryMuscle, equipment,
+  │     notes, isCustom (true), alternativeIds:[…], syncedAt
+  │
   └─ exercise_history/{exerciseId}← PR cache for fast lookups
         exerciseId, maxWeight, maxVolume, lastPerformed, updatedAt
 ```
+
+The **active program** selection (`active_program_id`) is device-local (in
+`settings`), so each device can run its own active plan; the programs
+themselves sync. Programs prescribe sets/reps/RPE per week; **weight is not
+prescribed** — logging pre-fills load from the lifter's last performance.
 
 ### Why this shape
 
@@ -56,10 +72,26 @@ users/{uid}                       ← profile + preferences
 
 ### Sync lifecycle
 
-- **Sign in:** `restoreFromCloud()` pulls sessions + routines into Hive. If a
-  *different* uid synced on this device before, local training data is wiped first
-  (tracked via `settings/last_synced_uid`) so accounts never mix.
-- **Sign up:** `pushAllLocal()` backs up anything created locally, then writes the
-  profile doc.
-- **During use:** finishing a workout, saving/deleting a routine, and deleting a
-  session each fire a background sync (no-op when signed out).
+- **Sign in:** `restoreFromCloud()` pulls sessions, routines, programs, and the
+  user's custom exercises into Hive. If a *different* uid synced on this device
+  before, local training data is wiped first (tracked via
+  `settings/last_synced_uid`) so accounts never mix. As a safety net, any
+  exercise embedded in a restored session/routine/program that isn't already in
+  the local library is re-added (covers customs created before exercise-sync
+  existed).
+- **Sign up:** `pushAllLocal()` backs up anything created locally (incl. custom
+  exercises), then writes the profile doc.
+- **During use:** finishing a workout, saving/deleting a routine, saving a
+  program, and creating a custom exercise each fire a background sync (no-op
+  when signed out).
+
+### Exercise library: bundled vs. custom
+
+The exercise library is **seeded into Hive on launch** from a versioned list in
+`HiveService` (`exerciseSeedVersion`). Bumping that version re-seeds — it
+overwrites only the built-in `ex_*` ids (so new exercises / edited metadata /
+populated alternatives reach existing installs) and never touches user-custom
+exercises. **Built-ins are NOT stored per user** (they ship with the app);
+**only custom exercises sync** to `users/{uid}/exercises`. Each exercise can
+carry `alternativeIds` — substitutes shown when the required machine/setup
+isn't available.

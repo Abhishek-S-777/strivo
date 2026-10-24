@@ -86,8 +86,8 @@ class WorkoutExercise {
           .map((s) => ExerciseSet.fromMap(s as Map<String, dynamic>))
           .toList(),
       notes: map['notes'] as String?,
-      order: map['order'] as int,
-      restSeconds: map['restSeconds'] as int?,
+      order: (map['order'] as num).toInt(),
+      restSeconds: (map['restSeconds'] as num?)?.toInt(),
     );
   }
 

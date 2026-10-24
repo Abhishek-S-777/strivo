@@ -83,9 +83,9 @@ class ExerciseSet {
   factory ExerciseSet.fromMap(Map<String, dynamic> map) {
     return ExerciseSet(
       id: map['id'] as String,
-      setNumber: map['setNumber'] as int,
+      setNumber: (map['setNumber'] as num).toInt(),
       weight: (map['weight'] as num).toDouble(),
-      reps: map['reps'] as int,
+      reps: (map['reps'] as num).toInt(),
       rpe: (map['rpe'] as num?)?.toDouble(),
       isCompleted: map['isCompleted'] as bool? ?? false,
       isWarmup: map['isWarmup'] as bool? ?? false,

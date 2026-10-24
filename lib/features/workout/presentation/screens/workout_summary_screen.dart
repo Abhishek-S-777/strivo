@@ -7,6 +7,7 @@ import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
+import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
 
 class WorkoutSummaryScreen extends ConsumerWidget {
@@ -358,19 +359,25 @@ class _SummaryStatCard extends StatelessWidget {
 }
 
 class _ExerciseBreakdownCard extends StatelessWidget {
-  final dynamic exercise;
-  final dynamic previousExercise;
+  final WorkoutExercise exercise;
+  final WorkoutExercise? previousExercise;
 
   const _ExerciseBreakdownCard({
     required this.exercise,
     this.previousExercise,
   });
 
+  /// RPE reads cleaner as a whole number when it is one ("RPE 8", not "8.0").
+  String _rpeLabel(double rpe) =>
+      rpe % 1 == 0 ? rpe.toStringAsFixed(0) : rpe.toStringAsFixed(1);
+
   @override
   Widget build(BuildContext context) {
-    final volumeDiff = previousExercise != null
-        ? exercise.totalVolume - previousExercise.totalVolume
-        : null;
+    final prev = previousExercise;
+    final volumeDiff =
+        prev != null ? exercise.totalVolume - prev.totalVolume : null;
+    final completedSets =
+        exercise.sets.where((s) => s.isCompleted).toList();
 
     return StrivoCard(
       child: Padding(
@@ -399,59 +406,59 @@ class _ExerciseBreakdownCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            ...exercise.sets
-                .where((s) => s.isCompleted)
-                .map<Widget>((s) => Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            child: Text(
-                              '${s.setNumber}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: AppColors.textTertiary),
-                            ),
-                          ),
-                          Text(
-                            '${Units.weightLabel(s.weight)} × ${s.reps} reps',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                          if (s.isPR) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: AppColors.pr.withAlpha(20),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                              child: const Text(
-                                'PR',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.pr,
-                                ),
-                              ),
-                            ),
-                          ],
-                          if (s.rpe != null) ...[
-                            const Spacer(),
-                            Text(
-                              'RPE ${s.rpe}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(color: AppColors.textTertiary),
-                            ),
-                          ],
-                        ],
+            ...completedSets.map((s) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 24,
+                        child: Text(
+                          '${s.setNumber}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: AppColors.textTertiary),
+                        ),
                       ),
-                    ))
-                .toList(),
+                      Flexible(
+                        child: Text(
+                          '${Units.weightLabel(s.weight)} × ${s.reps} reps',
+                          style: Theme.of(context).textTheme.bodySmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (s.isPR) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.pr.withAlpha(20),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: const Text(
+                            'PR',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.pr,
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (s.rpe != null) ...[
+                        const Spacer(),
+                        Text(
+                          'RPE ${_rpeLabel(s.rpe!)}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: AppColors.textTertiary),
+                        ),
+                      ],
+                    ],
+                  ),
+                )),
           ],
         ),
       ),

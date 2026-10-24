@@ -22,11 +22,36 @@ class AnalyticsScreen extends ConsumerWidget {
     final exercisesHistory = ref.watch(exercisesWithHistoryProvider);
     final insights = ref.watch(insightsProvider);
     final streak = ref.watch(trainingStreakProvider);
-    final weeklyLoad = ref.watch(weeklyLoadHistoryProvider);
     final exerciseTrends = ref.watch(exerciseTrendsProvider);
     final muscleVolume = ref.watch(muscleGroupVolumeProvider);
     final consistency = ref.watch(consistencyProvider);
     ref.watch(weightUnitProvider); // rebuild on kg/lbs change
+
+    // Exercise Progress search — a local filter over the user's trained lifts.
+    final exerciseQuery = ref
+        .watch(analyticsExerciseQueryProvider)
+        .trim()
+        .toLowerCase();
+    final hasExerciseData =
+        exerciseTrends.isNotEmpty || exercisesHistory.isNotEmpty;
+    final useTrends = exerciseTrends.isNotEmpty;
+    final filteredTrends = exerciseQuery.isEmpty
+        ? exerciseTrends
+        : exerciseTrends
+              .where(
+                (t) => t.exerciseName.toLowerCase().contains(exerciseQuery),
+              )
+              .toList();
+    final filteredHistory = exerciseQuery.isEmpty
+        ? exercisesHistory
+        : exercisesHistory
+              .where(
+                (p) => p.exerciseName.toLowerCase().contains(exerciseQuery),
+              )
+              .toList();
+    final matchCount = useTrends
+        ? filteredTrends.length
+        : filteredHistory.length;
 
     return Scaffold(
       body: SafeArea(
@@ -46,18 +71,24 @@ class AnalyticsScreen extends ConsumerWidget {
                     if (streak.currentStreak > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.warning.withAlpha(20),
                           borderRadius: BorderRadius.circular(AppRadius.sm),
-                          border:
-                              Border.all(color: AppColors.warning.withAlpha(40)),
+                          border: Border.all(
+                            color: AppColors.warning.withAlpha(40),
+                          ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(LucideIcons.flame,
-                                size: 14, color: AppColors.warning),
+                            Icon(
+                              LucideIcons.flame,
+                              size: 14,
+                              color: AppColors.warning,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               '${streak.currentStreak}w streak',
@@ -75,36 +106,10 @@ class AnalyticsScreen extends ConsumerWidget {
               ),
             ),
 
-            // ── Weekly Overview ──
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'This Week',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    VolumeHeroCard(
-                      label: 'Total Volume This Week',
-                      volumeKg: weeklyStats.totalVolume,
-                      diffPercent: weeklyStats.volumeDiffPercent,
-                      stats: [
-                        HeroStat('Workouts', '${weeklyStats.workoutCount}'),
-                        HeroStat('Sets', '${weeklyStats.totalSets}'),
-                        HeroStat(
-                          'PRs',
-                          '${weeklyStats.prCount}',
-                          color:
-                              weeklyStats.prCount > 0 ? AppColors.pr : null,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+            // ── Weekly Overview (swipe ◀ ▶ or tap the chevrons to page weeks) ──
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 0),
+              sliver: SliverToBoxAdapter(child: _WeeklyOverview()),
             ),
 
             // ── Smart Insights ──
@@ -114,8 +119,11 @@ class AnalyticsScreen extends ConsumerWidget {
                 sliver: SliverToBoxAdapter(
                   child: Row(
                     children: [
-                      Icon(LucideIcons.sparkles,
-                          size: 18, color: AppColors.primary),
+                      Icon(
+                        LucideIcons.sparkles,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Smart Insights',
@@ -126,16 +134,22 @@ class AnalyticsScreen extends ConsumerWidget {
                 ),
               ),
               SliverToBoxAdapter(
-                child: SizedBox(
-                  height: 140,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    itemCount: insights.length.clamp(0, 6),
-                    itemBuilder: (context, index) {
-                      return _InsightCard(insight: insights[index]);
-                    },
+                // Inset the viewport itself (not the scroll content) so cards
+                // clip at a constant 20px gutter on both sides and slide *under*
+                // the padding instead of reaching the screen edge when scrolled.
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    height: 140,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      itemCount: insights.length.clamp(0, 6),
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        return _InsightCard(insight: insights[index]);
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -150,15 +164,6 @@ class AnalyticsScreen extends ConsumerWidget {
                     exercises: exercisesHistory,
                     trends: exerciseTrends,
                   ),
-                ),
-              ),
-
-            // ── Weekly Volume Chart ──
-            if (weeklyLoad.length > 1)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                sliver: SliverToBoxAdapter(
-                  child: _WeeklyVolumeChart(weeklyLoad: weeklyLoad),
                 ),
               ),
 
@@ -192,8 +197,9 @@ class AnalyticsScreen extends ConsumerWidget {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: _getTrendColor(weeklyStats.trend)
-                                .withAlpha(20),
+                            color: _getTrendColor(
+                              weeklyStats.trend,
+                            ).withAlpha(20),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
@@ -209,26 +215,25 @@ class AnalyticsScreen extends ConsumerWidget {
                             children: [
                               Text(
                                 'Overall Trend',
-                                style:
-                                    Theme.of(context).textTheme.titleSmall,
+                                style: Theme.of(context).textTheme.titleSmall,
                               ),
                               Text(
                                 _getTrendMessage(weeklyStats),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                        color: AppColors.textSecondary),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                             ],
                           ),
                         ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 4),
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: _getTrendColor(weeklyStats.trend)
-                                .withAlpha(20),
+                            color: _getTrendColor(
+                              weeklyStats.trend,
+                            ).withAlpha(20),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
@@ -248,7 +253,7 @@ class AnalyticsScreen extends ConsumerWidget {
               ),
             ),
 
-            // ── Exercise Trends ──
+            // ── Exercise Progress (searchable) ──
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 0),
               sliver: SliverToBoxAdapter(
@@ -259,7 +264,14 @@ class AnalyticsScreen extends ConsumerWidget {
               ),
             ),
 
-            if (exerciseTrends.isEmpty && exercisesHistory.isEmpty)
+            // Local search across the lifts you've logged.
+            if (hasExerciseData)
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+                sliver: SliverToBoxAdapter(child: _ExerciseSearchField()),
+              ),
+
+            if (!hasExerciseData)
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                 sliver: SliverToBoxAdapter(
@@ -268,23 +280,49 @@ class AnalyticsScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         children: [
-                          Icon(LucideIcons.barChart3,
-                              size: 40, color: AppColors.textTertiary),
+                          Icon(
+                            LucideIcons.barChart3,
+                            size: 40,
+                            color: AppColors.textTertiary,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'No exercise data yet',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Complete workouts to see your progress',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AppColors.textTertiary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else if (matchCount == 0)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+                sliver: SliverToBoxAdapter(
+                  child: StrivoCard(
+                    child: Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Column(
+                        children: [
+                          Icon(
+                            LucideIcons.search,
+                            size: 34,
+                            color: AppColors.textTertiary,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            'No exercises match your search',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.textSecondary),
                           ),
                         ],
                       ),
@@ -296,41 +334,31 @@ class AnalyticsScreen extends ConsumerWidget {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      // Use exercise trends if available, fall back to basic progress
-                      if (exerciseTrends.isNotEmpty &&
-                          index < exerciseTrends.length) {
-                        final trend = exerciseTrends[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _ExerciseTrendCard(
-                            trend: trend,
-                            onTap: () => context.push(
-                              '/analytics/exercise/${trend.exerciseId}?name=${Uri.encodeComponent(trend.exerciseName)}',
-                            ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    // Prefer rich trend cards; fall back to basic progress.
+                    if (useTrends) {
+                      final trend = filteredTrends[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: _ExerciseTrendCard(
+                          trend: trend,
+                          onTap: () => context.push(
+                            '/analytics/exercise/${trend.exerciseId}?name=${Uri.encodeComponent(trend.exerciseName)}',
                           ),
-                        );
-                      }
-                      // Fallback for basic progress data
-                      if (index < exercisesHistory.length) {
-                        final progress = exercisesHistory[index];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: _BasicExerciseCard(
-                            progress: progress,
-                            onTap: () => context.push(
-                              '/analytics/exercise/${progress.exerciseId}?name=${Uri.encodeComponent(progress.exerciseName)}',
-                            ),
-                          ),
-                        );
-                      }
-                      return null;
-                    },
-                    childCount: exerciseTrends.isNotEmpty
-                        ? exerciseTrends.length
-                        : exercisesHistory.length,
-                  ),
+                        ),
+                      );
+                    }
+                    final progress = filteredHistory[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _BasicExerciseCard(
+                        progress: progress,
+                        onTap: () => context.push(
+                          '/analytics/exercise/${progress.exerciseId}?name=${Uri.encodeComponent(progress.exerciseName)}',
+                        ),
+                      ),
+                    );
+                  }, childCount: matchCount),
                 ),
               ),
           ],
@@ -386,17 +414,13 @@ class _InsightCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 260,
-      margin: const EdgeInsets.only(right: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: insight.color.withAlpha(30)),
         gradient: LinearGradient(
-          colors: [
-            insight.color.withAlpha(8),
-            AppColors.surface,
-          ],
+          colors: [insight.color.withAlpha(8), AppColors.surface],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -417,8 +441,7 @@ class _InsightCard extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: insight.color.withAlpha(15),
                   borderRadius: BorderRadius.circular(4),
@@ -438,10 +461,9 @@ class _InsightCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             insight.title,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontSize: 13,
-                  height: 1.3,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontSize: 13, height: 1.3),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -450,10 +472,10 @@ class _InsightCard extends StatelessWidget {
             child: Text(
               insight.description,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                    fontSize: 11,
-                    height: 1.4,
-                  ),
+                color: AppColors.textTertiary,
+                fontSize: 11,
+                height: 1.4,
+              ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -490,136 +512,364 @@ class _InsightCard extends StatelessWidget {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// WEEKLY VOLUME BAR CHART
+// WEEKLY OVERVIEW (swipeable hero card)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class _WeeklyVolumeChart extends StatelessWidget {
-  final List<WeeklyLoadSummary> weeklyLoad;
+/// The volume hero card, paged through history: swipe right (or tap ◀) for the
+/// previous week, swipe left (or tap ▶) for the next — bounded by the first week
+/// you trained and the current week.
+class _WeeklyOverview extends ConsumerStatefulWidget {
+  const _WeeklyOverview();
 
-  const _WeeklyVolumeChart({required this.weeklyLoad});
+  @override
+  ConsumerState<_WeeklyOverview> createState() => _WeeklyOverviewState();
+}
+
+class _WeeklyOverviewState extends ConsumerState<_WeeklyOverview> {
+  int _offset = 0; // 0 = current week, negative = further back
+  int _dir = 0; // last navigation direction, drives the slide transition
+
+  void _go(int delta, int minOffset) {
+    final next = _offset + delta;
+    if (next > 0 || next < minOffset) return; // no future, no empty pre-history
+    setState(() {
+      _dir = delta;
+      _offset = next;
+    });
+  }
+
+  String _label(int offset) {
+    switch (offset) {
+      case 0:
+        return 'This Week';
+      case -1:
+        return 'Last Week';
+      default:
+        return '${-offset} Weeks Ago';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final maxVolume = weeklyLoad
-        .map((w) => w.totalVolume)
-        .fold(0.0, (a, b) => a > b ? a : b);
+    final theme = Theme.of(context);
+    final stats = ref.watch(weeklyStatsForWeekProvider(_offset));
+    final minOffset = ref.watch(earliestTrainedWeekOffsetProvider);
+    final canOlder = _offset > minOffset;
+    final canNewer = _offset < 0;
+    final weekEnd = stats.weekStart.add(const Duration(days: 6));
 
-    return StrivoCard(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Weekly Volume',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                Text(
-                  'Last 8 weeks',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 140,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: maxVolume * 1.2,
-                  barTouchData: BarTouchData(
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (_) => AppColors.surfaceElevated,
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        final week = weeklyLoad[group.x.toInt()];
-                        return BarTooltipItem(
-                          '${Units.volumeLabel(week.totalVolume)}\n',
-                          TextStyle(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                          children: [
-                            TextSpan(
-                              text:
-                                  '${week.workoutCount} workouts',
-                              style: TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _label(stats.weekOffset),
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${DateFormat('MMM d').format(stats.weekStart)} – ${DateFormat('MMM d').format(weekEnd)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
                     ),
                   ),
-                  titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    rightTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    topTitles: const AxisTitles(
-                      sideTitles: SideTitles(showTitles: false),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final idx = value.toInt();
-                          if (idx < 0 || idx >= weeklyLoad.length) {
-                            return const SizedBox.shrink();
-                          }
-                          final ws = weeklyLoad[idx].weekStart;
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              DateFormat('d/M').format(ws),
-                              style: TextStyle(
-                                fontSize: 9,
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  gridData: const FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  barGroups: weeklyLoad.asMap().entries.map((entry) {
-                    final isCurrentWeek =
-                        entry.key == weeklyLoad.length - 1;
-                    return BarChartGroupData(
-                      x: entry.key,
-                      barRods: [
-                        BarChartRodData(
-                          toY: entry.value.totalVolume,
-                          width: 18,
-                          color: isCurrentWeek
-                              ? AppColors.primary
-                              : AppColors.primary.withAlpha(60),
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(4),
-                            topRight: Radius.circular(4),
-                          ),
-                        ),
-                      ],
-                    );
-                  }).toList(),
-                ),
+                ],
               ),
+            ),
+            _WeekNavButton(
+              icon: LucideIcons.chevronLeft,
+              enabled: canOlder,
+              onTap: () => _go(-1, minOffset),
+            ),
+            const SizedBox(width: 6),
+            _WeekNavButton(
+              icon: LucideIcons.chevronRight,
+              enabled: canNewer,
+              onTap: () => _go(1, minOffset),
             ),
           ],
         ),
+        const SizedBox(height: 12),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onHorizontalDragEnd: (details) {
+            final v = details.primaryVelocity ?? 0;
+            if (v > 120) {
+              _go(-1, minOffset); // swipe right → previous (older) week
+            } else if (v < -120) {
+              _go(1, minOffset); // swipe left → next (newer) week
+            }
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            transitionBuilder: (child, animation) {
+              final begin = Offset(
+                _dir == 0 ? 0 : (_dir > 0 ? 0.12 : -0.12),
+                0,
+              );
+              return FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween(
+                    begin: begin,
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
+                ),
+              );
+            },
+            child: VolumeHeroCard(
+              key: ValueKey(stats.weekOffset),
+              label: 'Total Volume',
+              volumeKg: stats.totalVolume,
+              diffPercent: stats.volumeDiffPercent,
+              stats: [
+                HeroStat('Workouts', '${stats.workoutCount}'),
+                HeroStat('Sets', '${stats.totalSets}'),
+                HeroStat(
+                  'PRs',
+                  '${stats.prCount}',
+                  color: stats.prCount > 0 ? AppColors.pr : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _WeekNavButton extends StatelessWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _WeekNavButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceLight,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Icon(
+          icon,
+          size: 18,
+          color: enabled
+              ? AppColors.textSecondary
+              : AppColors.textTertiary.withAlpha(60),
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EXERCISE PROGRESS SEARCH
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Search query for the "Exercise Progress" list. Auto-disposes (resets to '')
+/// when the Analytics screen leaves the tree.
+final analyticsExerciseQueryProvider = StateProvider.autoDispose<String>(
+  (ref) => '',
+);
+
+class _ExerciseSearchField extends ConsumerStatefulWidget {
+  const _ExerciseSearchField();
+
+  @override
+  ConsumerState<_ExerciseSearchField> createState() =>
+      _ExerciseSearchFieldState();
+}
+
+class _ExerciseSearchFieldState extends ConsumerState<_ExerciseSearchField> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final query = ref.watch(analyticsExerciseQueryProvider);
+    return TextField(
+      controller: _controller,
+      decoration: InputDecoration(
+        hintText: 'Search your exercises...',
+        prefixIcon: const Icon(LucideIcons.search, size: 18),
+        suffixIcon: query.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(LucideIcons.x, size: 16),
+                onPressed: () {
+                  _controller.clear();
+                  ref.read(analyticsExerciseQueryProvider.notifier).state = '';
+                },
+              ),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+      ),
+      onChanged: (v) =>
+          ref.read(analyticsExerciseQueryProvider.notifier).state = v,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STRENGTH-TREND EXERCISE PICKER (searchable bottom sheet)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+class _StrengthExercisePickerSheet extends StatefulWidget {
+  final List<ExerciseProgressData> exercises;
+  final String? selectedId;
+
+  const _StrengthExercisePickerSheet({
+    required this.exercises,
+    this.selectedId,
+  });
+
+  @override
+  State<_StrengthExercisePickerSheet> createState() =>
+      _StrengthExercisePickerSheetState();
+}
+
+class _StrengthExercisePickerSheetState
+    extends State<_StrengthExercisePickerSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final q = _query.trim().toLowerCase();
+    final items = q.isEmpty
+        ? widget.exercises
+        : widget.exercises
+              .where((e) => e.exerciseName.toLowerCase().contains(q))
+              .toList();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.7,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceHover,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Strength Trend',
+                style: theme.textTheme.headlineSmall,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+            child: TextField(
+              autofocus: true,
+              decoration: const InputDecoration(
+                hintText: 'Search exercises...',
+                prefixIcon: Icon(LucideIcons.search, size: 18),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: items.isEmpty
+                ? Center(
+                    child: Text(
+                      'No exercises found',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: items.length,
+                    itemBuilder: (context, i) {
+                      final e = items[i];
+                      final sel = e.exerciseId == widget.selectedId;
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? AppColors.primary.withAlpha(28)
+                                : AppColors.surfaceLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            LucideIcons.dumbbell,
+                            size: 20,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        title: Text(
+                          e.exerciseName,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        subtitle: Text(
+                          '${e.dataPoints.length} sessions • Best ${Units.weightLabel(e.allTimeMax)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                        trailing: sel
+                            ? const Icon(
+                                LucideIcons.check,
+                                size: 18,
+                                color: AppColors.primary,
+                              )
+                            : null,
+                        onTap: () => Navigator.pop(context, e.exerciseId),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -636,8 +886,7 @@ class _MuscleDistributionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalVolume =
-        muscleVolume.values.fold(0.0, (sum, v) => sum + v);
+    final totalVolume = muscleVolume.values.fold(0.0, (sum, v) => sum + v);
     if (totalVolume == 0) return const SizedBox.shrink();
 
     final sorted = muscleVolume.entries.toList()
@@ -656,10 +905,9 @@ class _MuscleDistributionCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'This week\'s volume by muscle group',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
             const SizedBox(height: 16),
             ...sorted.map((entry) {
@@ -674,16 +922,12 @@ class _MuscleDistributionCard extends StatelessWidget {
                       children: [
                         Text(
                           entry.key.displayName,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
+                          style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(fontWeight: FontWeight.w500),
                         ),
                         Text(
                           '${percent.toStringAsFixed(0)}% · ${Units.volumeLabel(entry.value)}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(color: AppColors.textTertiary),
                         ),
                       ],
@@ -740,10 +984,7 @@ class _ExerciseTrendCard extends StatelessWidget {
   final ExerciseTrend trend;
   final VoidCallback onTap;
 
-  const _ExerciseTrendCard({
-    required this.trend,
-    required this.onTap,
-  });
+  const _ExerciseTrendCard({required this.trend, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -780,21 +1021,23 @@ class _ExerciseTrendCard extends StatelessWidget {
                       Text(
                         Units.weightLabel(trend.currentWeight),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       if (trend.weightChange.abs() > 0 &&
                           trend.sessionCount > 1)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: trend.weightChange > 0
                                 ? AppColors.successMuted
                                 : trend.weightChange < 0
-                                    ? AppColors.errorMuted
-                                    : AppColors.surfaceLight,
+                                ? AppColors.errorMuted
+                                : AppColors.surfaceLight,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -805,18 +1048,17 @@ class _ExerciseTrendCard extends StatelessWidget {
                               color: trend.weightChange > 0
                                   ? AppColors.increase
                                   : trend.weightChange < 0
-                                      ? AppColors.decrease
-                                      : AppColors.stagnant,
+                                  ? AppColors.decrease
+                                  : AppColors.stagnant,
                             ),
                           ),
                         ),
                       const SizedBox(width: 8),
                       Text(
                         'Est. 1RM: ${Units.weightLabel(trend.estimated1RM)}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -827,8 +1069,10 @@ class _ExerciseTrendCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: _statusColor.withAlpha(15),
                     borderRadius: BorderRadius.circular(4),
@@ -846,16 +1090,18 @@ class _ExerciseTrendCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${trend.sessionCount} sessions',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ],
             ),
             const SizedBox(width: 4),
-            Icon(LucideIcons.chevronRight,
-                size: 16, color: AppColors.textTertiary),
+            Icon(
+              LucideIcons.chevronRight,
+              size: 16,
+              color: AppColors.textTertiary,
+            ),
           ],
         ),
       ),
@@ -904,10 +1150,7 @@ class _BasicExerciseCard extends StatelessWidget {
   final ExerciseProgressData progress;
   final VoidCallback onTap;
 
-  const _BasicExerciseCard({
-    required this.progress,
-    required this.onTap,
-  });
+  const _BasicExerciseCard({required this.progress, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -933,14 +1176,16 @@ class _BasicExerciseCard extends StatelessWidget {
                       Text(
                         Units.weightLabel(progress.currentMax),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       if (weightDiff != 0 && progress.previousMax > 0)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: weightDiff > 0
                                 ? AppColors.successMuted
@@ -963,16 +1208,18 @@ class _BasicExerciseCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${progress.dataPoints.length} sessions • Best: ${Units.weightLabel(progress.allTimeMax)}',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: AppColors.textTertiary),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(LucideIcons.chevronRight,
-                size: 18, color: AppColors.textTertiary),
+            Icon(
+              LucideIcons.chevronRight,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
           ],
         ),
       ),
@@ -996,6 +1243,7 @@ class _StrengthTrendCard extends StatefulWidget {
 
 class _StrengthTrendCardState extends State<_StrengthTrendCard> {
   String? _selectedId;
+  final _chipScroll = ScrollController();
 
   @override
   void initState() {
@@ -1007,12 +1255,38 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
   }
 
   @override
+  void dispose() {
+    _chipScroll.dispose();
+    super.dispose();
+  }
+
+  /// Select a lift and float its chip to the front of the row, gliding the
+  /// list back to the start so the active chip is always the first one in view.
+  void _select(String id) {
+    setState(() => _selectedId = id);
+    if (_chipScroll.hasClients) {
+      _chipScroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selected = widget.exercises.firstWhere(
       (e) => e.exerciseId == _selectedId,
       orElse: () => widget.exercises.first,
     );
+    // Selected lift floats to the front of the chip row; the rest keep their
+    // original order, so a previously-selected chip returns to its old spot.
+    final ordered = [
+      selected,
+      for (final e in widget.exercises)
+        if (e.exerciseId != selected.exerciseId) e,
+    ];
     final trend = widget.trends
         .where((t) => t.exerciseId == selected.exerciseId)
         .firstOrNull;
@@ -1023,13 +1297,13 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
     final maxW = points.isEmpty
         ? 0.0
         : points
-            .map((p) => Units.fromKg(p.maxWeight))
-            .reduce((a, b) => a > b ? a : b);
+              .map((p) => Units.fromKg(p.maxWeight))
+              .reduce((a, b) => a > b ? a : b);
     final minW = points.isEmpty
         ? 0.0
         : points
-            .map((p) => Units.fromKg(p.maxWeight))
-            .reduce((a, b) => a < b ? a : b);
+              .map((p) => Units.fromKg(p.maxWeight))
+              .reduce((a, b) => a < b ? a : b);
     final span = (maxW - minW).abs();
     final pad = span == 0 ? (maxW == 0 ? 5.0 : maxW * 0.1) : span * 0.25;
 
@@ -1066,8 +1340,9 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
                     const SizedBox(height: 2),
                     Text(
                       selected.exerciseName,
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -1088,7 +1363,8 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
                   const SizedBox(height: 2),
                   Text(
                     Units.weightLabel(
-                        trend?.estimated1RM ?? selected.allTimeMax),
+                      trend?.estimated1RM ?? selected.allTimeMax,
+                    ),
                     style: theme.textTheme.titleLarge?.copyWith(
                       color: AppColors.primary,
                       fontWeight: FontWeight.w800,
@@ -1109,54 +1385,85 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
                 : Center(
                     child: Text(
                       'Log this lift again to see your trend',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ),
           ),
 
-          // Exercise selector
+          // Exercise selector — a pinned search button + quick-access chips,
+          // so a lift at the end of the list is one tap (not a long swipe) away.
           if (widget.exercises.length > 1) ...[
             const SizedBox(height: 16),
-            SizedBox(
-              height: 32,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: widget.exercises.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 8),
-                itemBuilder: (context, i) {
-                  final ex = widget.exercises[i];
-                  final isSel = ex.exerciseId == selected.exerciseId;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedId = ex.exerciseId),
-                    child: Container(
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: isSel
-                            ? AppColors.primary.withAlpha(28)
-                            : AppColors.surfaceLight,
-                        borderRadius: BorderRadius.circular(AppRadius.full),
-                        border: Border.all(
-                          color: isSel
-                              ? AppColors.primary.withAlpha(90)
-                              : AppColors.border,
-                        ),
-                      ),
-                      child: Text(
-                        ex.exerciseName,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: isSel
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
-                          fontWeight:
-                              isSel ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                      ),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () => _openSearch(selected.exerciseId),
+                  child: Container(
+                    height: 32,
+                    width: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLight,
+                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      border: Border.all(color: AppColors.border),
                     ),
-                  );
-                },
-              ),
+                    child: const Icon(
+                      LucideIcons.search,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SizedBox(
+                    height: 32,
+                    child: ListView.separated(
+                      controller: _chipScroll,
+                      scrollDirection: Axis.horizontal,
+                      itemCount: ordered.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 8),
+                      itemBuilder: (context, i) {
+                        final ex = ordered[i];
+                        final isSel = ex.exerciseId == selected.exerciseId;
+                        return GestureDetector(
+                          onTap: () => _select(ex.exerciseId),
+                          child: Container(
+                            alignment: Alignment.center,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: isSel
+                                  ? AppColors.primary.withAlpha(28)
+                                  : AppColors.surfaceLight,
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.full,
+                              ),
+                              border: Border.all(
+                                color: isSel
+                                    ? AppColors.primary.withAlpha(90)
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Text(
+                              ex.exerciseName,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: isSel
+                                    ? AppColors.primary
+                                    : AppColors.textSecondary,
+                                fontWeight: isSel
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -1164,8 +1471,28 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
     );
   }
 
+  /// Open a searchable picker so any lift (even one far down the chip row) is
+  /// reachable without scrolling. Returns the chosen exercise id.
+  Future<void> _openSearch(String currentId) async {
+    final sorted = [...widget.exercises]
+      ..sort((a, b) => a.exerciseName.compareTo(b.exerciseName));
+    final id = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _StrengthExercisePickerSheet(
+        exercises: sorted,
+        selectedId: currentId,
+      ),
+    );
+    if (id != null && mounted) _select(id);
+  }
+
   LineChartData _chartData(
-      List<ExerciseProgressPoint> points, double minY, double maxY) {
+    List<ExerciseProgressPoint> points,
+    double minY,
+    double maxY,
+  ) {
     final labelEvery = points.length > 6 ? (points.length / 4).ceil() : 1;
     return LineChartData(
       minY: minY,
@@ -1177,10 +1504,10 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
             const FlLine(color: AppColors.chartGrid, strokeWidth: 0.5),
       ),
       titlesData: FlTitlesData(
-        topTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles:
-            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        rightTitles: const AxisTitles(
+          sideTitles: SideTitles(showTitles: false),
+        ),
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
@@ -1192,7 +1519,9 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
               return Text(
                 v.toInt().toString(),
                 style: const TextStyle(
-                    fontSize: 9, color: AppColors.textTertiary),
+                  fontSize: 9,
+                  color: AppColors.textTertiary,
+                ),
               );
             },
           ),
@@ -1212,7 +1541,9 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
                 child: Text(
                   DateFormat('MMM').format(points[i].date),
                   style: const TextStyle(
-                      fontSize: 9, color: AppColors.textTertiary),
+                    fontSize: 9,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               );
             },
@@ -1323,8 +1654,9 @@ class _ConsistencyCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Last 12 weeks',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -1336,14 +1668,14 @@ class _ConsistencyCard extends StatelessWidget {
                 return Column(
                   children: List.generate(rows, (r) {
                     return Padding(
-                      padding:
-                          EdgeInsets.only(bottom: r < rows - 1 ? gap : 0),
+                      padding: EdgeInsets.only(bottom: r < rows - 1 ? gap : 0),
                       child: Row(
                         children: List.generate(cols, (c) {
                           final level = data.weeks[c][r];
                           return Padding(
                             padding: EdgeInsets.only(
-                                right: c < cols - 1 ? gap : 0),
+                              right: c < cols - 1 ? gap : 0,
+                            ),
                             child: Container(
                               width: cell,
                               height: cell,
@@ -1352,7 +1684,9 @@ class _ConsistencyCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(3),
                                 border: level == 0
                                     ? Border.all(
-                                        color: AppColors.border, width: 0.5)
+                                        color: AppColors.border,
+                                        width: 0.5,
+                                      )
                                     : null,
                               ),
                             ),
@@ -1373,8 +1707,9 @@ class _ConsistencyCard extends StatelessWidget {
               children: [
                 Text(
                   'Less',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 Row(
                   children: [
@@ -1389,7 +1724,9 @@ class _ConsistencyCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(2),
                             border: lvl == 0
                                 ? Border.all(
-                                    color: AppColors.border, width: 0.5)
+                                    color: AppColors.border,
+                                    width: 0.5,
+                                  )
                                 : null,
                           ),
                         ),
@@ -1398,8 +1735,9 @@ class _ConsistencyCard extends StatelessWidget {
                 ),
                 Text(
                   'Elite',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ],
             ),

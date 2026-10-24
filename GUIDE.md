@@ -6,7 +6,7 @@
 - **State:** Riverpod · **Navigation:** go_router · **Local DB:** Hive · **Cloud:** Firebase (Auth + Firestore)
 - **Design:** "Elite Performance" — deep‑black canvas, periwinkle‑blue primary, lime‑green accent
 
-> All loads are in **kilograms (kg)**. Strivo does **not** track height, age, BMI, or body‑fat — "weight" everywhere means the load on the bar/dumbbell. (The only body‑weight field is an optional tag on progress photos, a feature currently disabled.)
+> Weights display in **kilograms or pounds** — your choice (Profile → Weight Unit). Data is always stored in kg internally and converted on the fly, so you can switch anytime without losing or corrupting anything. Strivo does **not** track height, age, BMI, or body‑fat — "weight" everywhere means the load on the bar/dumbbell. (The only body‑weight field is an optional tag on progress photos, a feature currently disabled.)
 
 ---
 
@@ -28,7 +28,7 @@ The bottom bar has four tabs: **Home · Routines · Analytics · Profile.** *(A 
 ### 🏠 Home — your dashboard
 - **Welcome header** with your name and the date.
 - **Volume This Week** hero card: total kg lifted this week, a trend pill vs last week (▲/▼ %), a sparkline of recent weeks, and Workouts / Sets / PRs counters.
-- **Next Routine** card: your most‑recently‑used routine with a one‑tap **Start Workout** (becomes **Resume Workout** if a session is already in progress).
+- **Today's Workout** card: if you have an **active program**, this shows the program's current session (e.g. "Week 3 · Push Day") with its exercises and prescribed targets, and a one‑tap **Start**. With no active program it falls back to a **Next Routine** card (your most‑recently‑used routine). Either becomes **Resume Workout** if a session is already in progress.
 - **Quick Start**: begin an empty (ad‑hoc) workout with no routine.
 - **Your Routines**: horizontal quick‑access list.
 - **Recent Workouts**: your last sessions with duration, exercise count, volume, and PR badges.
@@ -40,6 +40,15 @@ The bottom bar has four tabs: **Home · Routines · Analytics · Profile.** *(A 
 - For each exercise set **target sets** and **target reps** with +/− steppers.
 - **Drag to reorder** exercises. Delete with the ✕.
 - **Save.** Start a routine anytime from Home, Routines, or the builder.
+
+### 🗓️ Programs — multi-week structured plans
+Open the **Programs** toggle at the top of the Routines tab. A **Program** is a multi-week plan (e.g. a 12-week hypertrophy block, or an ongoing Push/Pull/Legs rotation):
+
+- Tap **New** → name it, set **length in weeks** (or flip **"No fixed end"** for an endless rotation), then add **training days** (Upper A, Lower A, Push, Pull…).
+- For each day, **add exercises**. Tap an exercise to set **per-week targets** — sets × reps @ RPE for every week (use **"Wk1 → all"** to fill fast, then tweak the weeks that progress).
+- **Set Active** to make it your current plan. Only one program is active at a time.
+
+**Running a program:** Home shows **"Today's Workout"** = the active program's current day, with this week's prescribed sets/reps/RPE. Start it → the sets are pre-built to the prescription, and **weight is pre-filled from your last time on that lift** so you simply work to the target and add load. Finishing **advances the program** to the next day (and rolls to the next week automatically); finite programs finish with 🎉 (and can be restarted). The exact same day next week pre-fills from this week — true week-over-week progression.
 
 ### 💪 Active Workout — the core logging screen
 This is where speed matters. When you start a routine, Strivo **pre‑fills every set with your last session's weight and reps** for that exercise, so most sets need *zero typing*.
@@ -73,16 +82,17 @@ This is where speed matters. When you start a routine, Strivo **pre‑fills ever
 ### 👤 Profile
 - Account card (name/email, cloud‑sync status).
 - **All‑Time Stats**: workouts, total volume, total sets, time trained.
-- **Settings**: weight unit, default rest timer, weight increments *(display placeholders today — kg/2.5 kg are the active defaults)*.
-- **Plate Calculator**: enter a target weight; Strivo shows the plates to load **per side** of a 20 kg barbell.
+- **Settings** (all functional, persisted): **Weight Unit (kg ⟷ lbs)** — switch anytime, the whole app re‑labels and converts instantly; **Default Rest Timer** (0:45–5:00) — used between sets; **Weight Increment** — how much +/- adds when logging (kg: 0.5/1/2.5/5 · lbs: 1/2.5/5/10).
+- **Plate Calculator**: enter a target weight; Strivo shows the plates to load **per side**. Unit‑aware: 20 kg bar with kg plates, or 45 lb bar with lb plates.
+- **Export Data**: see §6 — CSV, JSON, or an AI‑ready report.
 - **Cloud Sync**: backup status and **Sign Out**.
-- **About Strivo** and **Export Data** (export is coming soon).
+- **About Strivo**.
 
 ---
 
 ## 3. Where the Exercise Library Comes From
 
-Strivo ships with a **built‑in library of 44 common exercises**, seeded into local storage on first launch (`HiveService._seedDefaultExercises`). Each carries a **primary muscle**, optional **secondary muscle**, and **equipment type**. Coverage:
+Strivo ships with a **built‑in library of 112 exercises** (the original staples plus the Jeff Nippard 12‑week program movements and their alternatives), seeded into local storage on first launch (`HiveService._seedDefaultExercises`) and refreshed when the bundled library version is bumped. Each carries a **primary muscle**, optional **secondary muscle**, **equipment type**, and an optional set of **alternatives** (substitute lifts shown when the required machine/setup isn't available). Core staples:
 
 - **Chest:** Bench Press, Incline Bench, DB Bench, Incline DB Press, Cable Fly, Chest Dip, Pec Deck
 - **Back:** Deadlift, Barbell Row, Pull Up, Lat Pulldown, Seated Cable Row, DB Row, T‑Bar Row, Face Pull
@@ -93,7 +103,7 @@ Strivo ships with a **built‑in library of 44 common exercises**, seeded into l
 - **Glutes:** Hip Thrust, Cable Kickback
 - **Core:** Plank, Cable Crunch, Hanging Leg Raise, Ab Wheel
 
-You can **add your own** custom exercises (name + muscle + equipment) from the exercise picker; they're saved to your library and sync to the cloud as you use them.
+You can **add your own** custom exercises (name + muscle + equipment) from the exercise picker. Custom exercises are saved to your library **and backed up to the cloud** (`users/{uid}/exercises`), so they survive a reinstall and follow you to a new device — built‑in exercises ship with the app and don't need per‑user storage. When an exercise has alternatives, a **swap (⟲) button** in the picker lists them so you can pick a substitute in one tap.
 
 ---
 
@@ -113,7 +123,8 @@ All metrics are computed locally from your logged sets. Only **completed, non‑
 | **Training streak** | Number of **consecutive ISO weeks** with ≥ 1 completed workout (current + longest) |
 | **Muscle distribution** | Each muscle's share of this week's total volume |
 | **Consistency level (per day)** | `0` rest · `1` light · `2` ≥ 33% of your peak day · `3` ≥ 66% of your peak day |
-| **Plate calculator** | `per_side = (target − 20 kg bar) / 2`, greedily filled from `[25,20,15,10,5,2.5,1.25] kg` |
+| **Plate calculator** | `per_side = (target − bar) / 2`, greedily filled by plate size. Unit‑aware: 20 kg bar + `[25,20,15,10,5,2.5,1.25]` kg, or 45 lb bar + `[45,35,25,10,5,2.5]` lb |
+| **Unit conversion** | Stored in kg; display = `kg × 2.20462` for lbs. 1 plate step = 2.5 kg or 5 lb |
 | **Workout intensity** | Relative effort vs your tracked maxes (shown during sessions) |
 
 ### Smart Insights engine
@@ -159,6 +170,16 @@ Strivo is built around **progressive overload** — doing a little more over tim
 - **Security:** Firestore rules make every record strictly **owner‑only**.
 - See [`DATA_MODEL.md`](DATA_MODEL.md) for the exact collection structure and why it's scalable.
 
+### Exporting your data (Profile → Export Data)
+
+Three formats, shared via the system share sheet (send to yourself, save to Drive, or paste into an AI):
+
+- **AI Training Report (Markdown)** — a readable summary: snapshot (totals, streak), this‑week‑vs‑last, your key lifts with **estimated 1RM** and 4‑week change, muscle focus, and recent sessions. It even includes a **ready‑made prompt** so you can hand it to an AI (like this one) and ask it to fine‑tune your **diet (calories/protein)** and **recovery (sleep, rest days, deloads)**, and flag over/undertrained muscles.
+- **CSV** — one row per set (date, exercise, weight, reps, RPE, volume, PR…) in your display unit — open in Excel/Sheets or import into diet/macro apps.
+- **JSON** — complete structured backup in canonical kg (lossless), with a summary block.
+
+CSV and the report use your chosen unit (kg/lbs) and label it clearly; JSON is always kg.
+
 ---
 
 ## 7. Running the Project
@@ -179,6 +200,4 @@ Flutter is managed via FVM:
 ## 8. Current Limitations / Disabled
 
 - **Progress Photos** tab — implemented but temporarily commented out.
-- **kg only** — the lbs unit toggle is a placeholder; all data is stored/shown in kg.
-- **Data export** — UI present, functionality coming soon.
 - **Firebase** is configured for **Android**; other platforms aren't set up.

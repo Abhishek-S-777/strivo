@@ -91,6 +91,10 @@ class Exercise {
   /// alternatives). Resolve against the exercise library by id.
   final List<String> alternativeIds;
 
+  /// Optional demo/tutorial video link (usually YouTube). When absent, the UI
+  /// falls back to a YouTube search for the exercise name.
+  final String? videoUrl;
+
   const Exercise({
     required this.id,
     required this.name,
@@ -100,9 +104,13 @@ class Exercise {
     this.notes,
     this.isCustom = false,
     this.alternativeIds = const [],
+    this.videoUrl,
   });
 
   bool get hasAlternatives => alternativeIds.isNotEmpty;
+
+  /// True when the user pinned a specific video (vs. relying on search).
+  bool get hasVideo => videoUrl != null && videoUrl!.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() {
     return {
@@ -114,6 +122,7 @@ class Exercise {
       'notes': notes,
       'isCustom': isCustom,
       'alternativeIds': alternativeIds,
+      'videoUrl': videoUrl,
     };
   }
 
@@ -141,6 +150,7 @@ class Exercise {
               ?.map((e) => e as String)
               .toList() ??
           const [],
+      videoUrl: map['videoUrl'] as String?,
     );
   }
 
@@ -153,6 +163,7 @@ class Exercise {
     String? notes,
     bool? isCustom,
     List<String>? alternativeIds,
+    String? videoUrl,
   }) {
     return Exercise(
       id: id ?? this.id,
@@ -163,6 +174,7 @@ class Exercise {
       notes: notes ?? this.notes,
       isCustom: isCustom ?? this.isCustom,
       alternativeIds: alternativeIds ?? this.alternativeIds,
+      videoUrl: videoUrl ?? this.videoUrl,
     );
   }
 
