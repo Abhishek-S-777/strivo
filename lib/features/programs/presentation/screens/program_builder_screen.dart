@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/utils/id_generator.dart';
+import 'package:strivo/features/programs/data/program_repository_impl.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
 import 'package:strivo/features/workout/presentation/widgets/exercise_picker_sheet.dart';
@@ -38,7 +38,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
     _name = TextEditingController();
     _desc = TextEditingController();
     if (widget.programId != null) {
-      final p = HiveService.getProgram(widget.programId!);
+      final p = ref.read(programRepositoryProvider).getById(widget.programId!);
       if (p != null) {
         _isEditing = true;
         _existing = p;

@@ -1,21 +1,21 @@
-import 'dart:async';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:strivo/core/services/firestore_sync_service.dart';
-import 'package:strivo/core/services/hive_service.dart';
+import 'package:strivo/features/programs/data/program_repository_impl.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
+import 'package:strivo/features/programs/domain/program_repository.dart';
 
 /// The id of the user's active program (device-local; programs themselves sync).
 final activeProgramIdProvider =
     StateNotifierProvider<ActiveProgramIdNotifier, String?>((ref) {
-      return ActiveProgramIdNotifier();
+      return ActiveProgramIdNotifier(ref.watch(programRepositoryProvider));
     });
 
 class ActiveProgramIdNotifier extends StateNotifier<String?> {
-  ActiveProgramIdNotifier() : super(HiveService.getActiveProgramId());
+  ActiveProgramIdNotifier(this._repo) : super(_repo.getActiveId());
+
+  final ProgramRepository _repo;
 
   Future<void> set(String? id) async {
-    await HiveService.setActiveProgramId(id);
+    await _repo.setActiveId(id);
     state = id;
   }
 }
@@ -27,29 +27,31 @@ final programsProvider = StateNotifierProvider<ProgramsNotifier, List<Program>>(
 );
 
 class ProgramsNotifier extends StateNotifier<List<Program>> {
-  ProgramsNotifier(this._ref) : super(HiveService.getAllPrograms());
+  ProgramsNotifier(this._ref)
+    : _repo = _ref.read(programRepositoryProvider),
+      super(_ref.read(programRepositoryProvider).getAll());
+
   final Ref _ref;
+  final ProgramRepository _repo;
 
   Future<void> save(Program program) async {
-    await HiveService.saveProgram(program);
-    state = HiveService.getAllPrograms();
-    unawaited(FirestoreSyncService.instance.syncProgram(program));
+    await _repo.save(program);
+    state = _repo.getAll();
   }
 
   Future<void> delete(String id) async {
-    await HiveService.deleteProgram(id);
+    await _repo.delete(id);
     if (_ref.read(activeProgramIdProvider) == id) {
       await _ref.read(activeProgramIdProvider.notifier).set(null);
     }
-    state = HiveService.getAllPrograms();
-    unawaited(FirestoreSyncService.instance.deleteProgram(id));
+    state = _repo.getAll();
   }
 
-  void refresh() => state = HiveService.getAllPrograms();
+  void refresh() => state = _repo.getAll();
 
   /// Advance a program's pointer after its current day was completed.
   Future<Program?> advance(String id) async {
-    final program = HiveService.getProgram(id);
+    final program = _repo.getById(id);
     if (program == null) return null;
     final next = program.advanced();
     await save(next);
@@ -57,7 +59,7 @@ class ProgramsNotifier extends StateNotifier<List<Program>> {
   }
 
   Future<void> restart(String id) async {
-    final program = HiveService.getProgram(id);
+    final program = _repo.getById(id);
     if (program == null) return;
     await save(program.restarted());
   }
