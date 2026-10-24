@@ -1,18 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/utils/id_generator.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
 import 'package:strivo/features/workout/presentation/widgets/exercise_picker_sheet.dart';
 
 class ProgramBuilderScreen extends ConsumerStatefulWidget {
-  final String? programId;
   const ProgramBuilderScreen({super.key, this.programId});
+  final String? programId;
 
   @override
   ConsumerState<ProgramBuilderScreen> createState() =>
@@ -58,10 +60,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
   void _resizeAllTargets() {
     _days = _days
-        .map((d) => d.copyWith(
-              exercises:
-                  d.exercises.map((e) => e.resizedTo(_effectiveWeeks)).toList(),
-            ))
+        .map(
+          (d) => d.copyWith(
+            exercises: d.exercises
+                .map((e) => e.resizedTo(_effectiveWeeks))
+                .toList(),
+          ),
+        )
         .toList();
   }
 
@@ -80,53 +85,62 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 
   void _renameDay(int index) {
     final controller = TextEditingController(text: _days[index].name);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Day Name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'e.g. Upper A, Push'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _days[index] =
-                  _days[index].copyWith(name: controller.text.trim()));
-              Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Day Name'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(hintText: 'e.g. Upper A, Push'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(
+                  () => _days[index] = _days[index].copyWith(
+                    name: controller.text.trim(),
+                  ),
+                );
+                Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _addExerciseToDay(int dayIndex) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ExercisePickerSheet(
-        onExerciseSelected: (exercise) {
-          setState(() {
-            final pe = ProgramExercise(
-              id: IdGenerator.generate(),
-              exercise: exercise,
-              weeklyTargets: List.generate(
-                _effectiveWeeks,
-                (_) => const SetTarget(sets: 3, repsMin: 8, repsMax: 10),
-              ),
-            );
-            _days[dayIndex] = _days[dayIndex].copyWith(
-              exercises: [..._days[dayIndex].exercises, pe],
-            );
-          });
-          Navigator.pop(context);
-        },
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => ExercisePickerSheet(
+          onExerciseSelected: (exercise) {
+            setState(() {
+              final pe = ProgramExercise(
+                id: IdGenerator.generate(),
+                exercise: exercise,
+                weeklyTargets: List.generate(
+                  _effectiveWeeks,
+                  (_) => const SetTarget(sets: 3, repsMin: 8, repsMax: 10),
+                ),
+              );
+              _days[dayIndex] = _days[dayIndex].copyWith(
+                exercises: [..._days[dayIndex].exercises, pe],
+              );
+            });
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -179,7 +193,7 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
       days: _days,
       updatedAt: now,
     );
-    ref.read(programsProvider.notifier).save(program);
+    unawaited(ref.read(programsProvider.notifier).save(program));
     context.pop();
   }
 
@@ -232,8 +246,10 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text('No fixed end (rotation)',
-                          style: theme.textTheme.titleSmall),
+                      child: Text(
+                        'No fixed end (rotation)',
+                        style: theme.textTheme.titleSmall,
+                      ),
                     ),
                     Switch(
                       value: _ongoing,
@@ -251,8 +267,10 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text('Program length',
-                              style: theme.textTheme.titleSmall),
+                          child: Text(
+                            'Program length',
+                            style: theme.textTheme.titleSmall,
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(LucideIcons.minus, size: 18),
@@ -261,10 +279,13 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                             _resizeAllTargets();
                           }),
                         ),
-                        Text('$_weeks wks',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.primary)),
+                        Text(
+                          '$_weeks wks',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
                         IconButton(
                           icon: const Icon(LucideIcons.plus, size: 18),
                           onPressed: () => setState(() {
@@ -285,9 +306,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             children: [
               Text('Training Days', style: theme.textTheme.titleLarge),
               const Spacer(),
-              Text('${_days.length}',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textTertiary)),
+              Text(
+                '${_days.length}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -295,8 +319,9 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
             _ongoing
                 ? 'These cycle in order, forever (Push → Pull → Legs → …).'
                 : 'These repeat each week for $_weeks weeks. Set per-week targets per exercise.',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: AppColors.textTertiary),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppColors.textTertiary,
+            ),
           ),
           const SizedBox(height: 12),
 
@@ -338,22 +363,29 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
                     child: Row(
                       children: [
                         Flexible(
-                          child: Text(day.name,
-                              style: theme.textTheme.titleMedium,
-                              overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            day.name,
+                            style: theme.textTheme.titleMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         const SizedBox(width: 6),
-                        Icon(LucideIcons.pencil,
-                            size: 13, color: AppColors.textTertiary),
+                        const Icon(
+                          LucideIcons.pencil,
+                          size: 13,
+                          color: AppColors.textTertiary,
+                        ),
                       ],
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(LucideIcons.trash2,
-                      size: 18, color: AppColors.error),
-                  onPressed: () =>
-                      setState(() => _days.removeAt(dayIndex)),
+                  icon: const Icon(
+                    LucideIcons.trash2,
+                    size: 18,
+                    color: AppColors.error,
+                  ),
+                  onPressed: () => setState(() => _days.removeAt(dayIndex)),
                 ),
               ],
             ),
@@ -361,9 +393,12 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
           if (day.exercises.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text('No exercises yet',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textTertiary)),
+              child: Text(
+                'No exercises yet',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
             )
           else
             ...day.exercises.asMap().entries.map((entry) {
@@ -374,12 +409,15 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
               return ListTile(
                 dense: true,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                title: Text(pe.exercise.name,
-                    style: theme.textTheme.titleSmall),
+                title: Text(
+                  pe.exercise.name,
+                  style: theme.textTheme.titleSmall,
+                ),
                 subtitle: Text(
                   _ongoing ? w1 : 'Wk1: $w1 · tap to set all weeks',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 trailing: IconButton(
                   icon: const Icon(LucideIcons.x, size: 16),
@@ -409,17 +447,16 @@ class _ProgramBuilderScreenState extends ConsumerState<ProgramBuilderScreen> {
 /// Per-week target editor. Lets you set sets/reps/RPE for each week, with a
 /// "copy week 1 to all" shortcut to fill quickly.
 class _WeekTargetsSheet extends StatefulWidget {
-  final String exerciseName;
-  final int weeks;
-  final bool ongoing;
-  final List<SetTarget> initial;
-
   const _WeekTargetsSheet({
     required this.exerciseName,
     required this.weeks,
     required this.ongoing,
     required this.initial,
   });
+  final String exerciseName;
+  final int weeks;
+  final bool ongoing;
+  final List<SetTarget> initial;
 
   @override
   State<_WeekTargetsSheet> createState() => _WeekTargetsSheetState();
@@ -433,9 +470,11 @@ class _WeekTargetsSheetState extends State<_WeekTargetsSheet> {
     super.initState();
     _targets = List.of(widget.initial);
     while (_targets.length < widget.weeks) {
-      _targets.add(_targets.isNotEmpty
-          ? _targets.last
-          : const SetTarget(sets: 3, repsMin: 8, repsMax: 10));
+      _targets.add(
+        _targets.isNotEmpty
+            ? _targets.last
+            : const SetTarget(sets: 3, repsMin: 8, repsMax: 10),
+      );
     }
   }
 
@@ -468,10 +507,12 @@ class _WeekTargetsSheetState extends State<_WeekTargetsSheet> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(widget.exerciseName,
-                        style: theme.textTheme.headlineSmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      widget.exerciseName,
+                      style: theme.textTheme.headlineSmall,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   if (!widget.ongoing)
                     TextButton(
@@ -480,9 +521,12 @@ class _WeekTargetsSheetState extends State<_WeekTargetsSheet> {
                     ),
                 ],
               ),
-              Text('Sets × reps @ RPE',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: AppColors.textTertiary)),
+              Text(
+                'Sets × reps @ RPE',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+              ),
               const SizedBox(height: 12),
               Flexible(
                 child: ListView.separated(
@@ -513,15 +557,14 @@ class _WeekTargetsSheetState extends State<_WeekTargetsSheet> {
 }
 
 class _WeekRow extends StatelessWidget {
-  final String label;
-  final SetTarget target;
-  final ValueChanged<SetTarget> onChanged;
-
   const _WeekRow({
     required this.label,
     required this.target,
     required this.onChanged,
   });
+  final String label;
+  final SetTarget target;
+  final ValueChanged<SetTarget> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -530,9 +573,12 @@ class _WeekRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 64,
-          child: Text(label,
-              style: theme.textTheme.labelMedium
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+          child: Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
         _Stepper(
           label: 'sets',
@@ -547,11 +593,14 @@ class _WeekRow extends StatelessWidget {
           value: target.repsMin,
           min: 1,
           max: 100,
-          onChanged: (v) => onChanged(target.copyWith(
+          onChanged: (v) => onChanged(
+            target.copyWith(
               repsMin: v,
               repsMax: (target.repsMax != null && target.repsMax! < v)
                   ? v
-                  : target.repsMax)),
+                  : target.repsMax,
+            ),
+          ),
         ),
         const SizedBox(width: 8),
         _Stepper(
@@ -571,13 +620,6 @@ class _WeekRow extends StatelessWidget {
 }
 
 class _Stepper extends StatelessWidget {
-  final String label;
-  final int value;
-  final int min;
-  final int max;
-  final String? display;
-  final ValueChanged<int> onChanged;
-
   const _Stepper({
     required this.label,
     required this.value,
@@ -586,17 +628,26 @@ class _Stepper extends StatelessWidget {
     required this.onChanged,
     this.display,
   });
+  final String label;
+  final int value;
+  final int min;
+  final int max;
+  final String? display;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Column(
         children: [
-          Text(label.toUpperCase(),
-              style: const TextStyle(
-                  fontSize: 9,
-                  color: AppColors.textTertiary,
-                  fontWeight: FontWeight.w600)),
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 9,
+              color: AppColors.textTertiary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 2),
           Container(
             decoration: BoxDecoration(
@@ -608,24 +659,32 @@ class _Stepper extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 GestureDetector(
-                  onTap: () =>
-                      onChanged((value - 1).clamp(min, max)),
+                  onTap: () => onChanged((value - 1).clamp(min, max)),
                   child: const Padding(
                     padding: EdgeInsets.all(6),
-                    child: Icon(LucideIcons.minus,
-                        size: 12, color: AppColors.textTertiary),
+                    child: Icon(
+                      LucideIcons.minus,
+                      size: 12,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ),
-                Text(display ?? '$value',
-                    style: const TextStyle(
-                        fontSize: 14, fontWeight: FontWeight.w600)),
+                Text(
+                  display ?? '$value',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 GestureDetector(
-                  onTap: () =>
-                      onChanged((value + 1).clamp(min, max)),
+                  onTap: () => onChanged((value + 1).clamp(min, max)),
                   child: const Padding(
                     padding: EdgeInsets.all(6),
-                    child: Icon(LucideIcons.plus,
-                        size: 12, color: AppColors.textTertiary),
+                    child: Icon(
+                      LucideIcons.plus,
+                      size: 12,
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ),
               ],

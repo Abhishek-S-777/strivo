@@ -17,7 +17,9 @@ class AppColors {
   static const Color primaryLight = Color(0xFFD8E2FF); // primary-fixed
   static const Color primaryDark = Color(0xFF4B8EFF); // primary-container fill
   static const Color primaryContainer = Color(0xFF4B8EFF);
-  static const Color onPrimary = Color(0xFF002E69); // navy — text/icon ON primary
+  static const Color onPrimary = Color(
+    0xFF002E69,
+  ); // navy — text/icon ON primary
   static const Color onPrimaryContainer = Color(0xFFD8E2FF);
   static const Color primaryMuted = Color(0xFFADC6FF);
 
@@ -35,7 +37,9 @@ class AppColors {
 
   // ── Text
   static const Color textPrimary = Color(0xFFF2F3F5); // on-surface
-  static const Color textSecondary = Color(0xFFC1C6D7); // on-surface-variant (cool)
+  static const Color textSecondary = Color(
+    0xFFC1C6D7,
+  ); // on-surface-variant (cool)
   static const Color textTertiary = Color(0xFF8B90A0); // outline
   static const Color textDisabled = Color(0xFF5A5F6B);
 

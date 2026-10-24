@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:strivo/core/logging/app_logger.dart';
 import 'package:strivo/core/utils/id_generator.dart';
 import 'package:strivo/features/progress_photos/domain/entities/progress_photo.dart';
 
@@ -12,16 +15,15 @@ const String _boxName = 'progress_photos';
 
 final progressPhotosProvider =
     StateNotifierProvider<ProgressPhotosNotifier, List<ProgressPhoto>>((ref) {
-  return ProgressPhotosNotifier();
-});
+      return ProgressPhotosNotifier();
+    });
 
 class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
+  ProgressPhotosNotifier() : super([]) {
+    unawaited(_init());
+  }
   late Box<String> _box;
   final ImagePicker _picker = ImagePicker();
-
-  ProgressPhotosNotifier() : super([]) {
-    _init();
-  }
 
   Future<void> _init() async {
     _box = await Hive.openBox<String>(_boxName);
@@ -29,11 +31,15 @@ class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
   }
 
   void _loadPhotos() {
-    state = _box.values
-        .map((json) =>
-            ProgressPhoto.fromMap(jsonDecode(json) as Map<String, dynamic>))
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    state =
+        _box.values
+            .map(
+              (json) => ProgressPhoto.fromMap(
+                jsonDecode(json) as Map<String, dynamic>,
+              ),
+            )
+            .toList()
+          ..sort((a, b) => b.date.compareTo(a.date));
   }
 
   Future<ProgressPhoto?> addPhoto({
@@ -42,7 +48,7 @@ class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
     ImageSource source = ImageSource.gallery,
   }) async {
     try {
-      final XFile? image = await _picker.pickImage(
+      final image = await _picker.pickImage(
         source: source,
         maxWidth: 1920,
         maxHeight: 1920,
@@ -54,7 +60,7 @@ class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
       // Save to app's document directory
       final appDir = await getApplicationDocumentsDirectory();
       final photosDir = Directory(p.join(appDir.path, 'strivo_photos'));
-      if (!await photosDir.exists()) {
+      if (!photosDir.existsSync()) {
         await photosDir.create(recursive: true);
       }
 
@@ -76,7 +82,12 @@ class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
       await _box.put(photo.id, jsonEncode(photo.toMap()));
       _loadPhotos();
       return photo;
-    } catch (e) {
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to add progress photo',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -86,10 +97,17 @@ class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
     // Delete the file
     try {
       final file = File(photo.imagePath);
-      if (await file.exists()) {
+      if (file.existsSync()) {
         await file.delete();
       }
-    } catch (_) {}
+    } on Object catch (e, stackTrace) {
+      // Best-effort cleanup; the Hive record is removed regardless.
+      AppLogger.warning(
+        'Failed to delete photo file',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
 
     await _box.delete(id);
     _loadPhotos();

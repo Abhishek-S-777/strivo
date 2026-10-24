@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -44,7 +46,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final controller = ref.read(authControllerProvider);
     final result = _isLogin
         ? await controller.signIn(
-            _emailController.text, _passwordController.text)
+            _emailController.text,
+            _passwordController.text,
+          )
         : await controller.signUp(
             _nameController.text,
             _emailController.text,
@@ -57,7 +61,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _isLoading = false;
         _error = result.error;
       });
-      HapticFeedback.heavyImpact();
+      unawaited(HapticFeedback.heavyImpact());
     }
     // On success the router redirect handles navigation; keep the spinner.
   }
@@ -68,8 +72,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       setState(() => _error = 'Enter your email above to reset your password.');
       return;
     }
-    final result =
-        await ref.read(authControllerProvider).sendPasswordReset(email);
+    final result = await ref
+        .read(authControllerProvider)
+        .sendPasswordReset(email);
     if (!mounted) return;
     if (result.success) {
       setState(() => _error = null);
@@ -153,14 +158,15 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               ? 'Log in to track your progression.'
                               : 'Precision tracking for serious lifters.',
                           textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: AppColors.textSecondary),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         const SizedBox(height: 36),
 
                         // ── Name (signup only) ──
                         if (!_isLogin) ...[
-                          _FieldLabel('Full Name'),
+                          const _FieldLabel('Full Name'),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _nameController,
@@ -171,7 +177,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                               prefixIcon: Icon(LucideIcons.user, size: 18),
                             ),
                             validator: (v) {
-                              if (!_isLogin && (v == null || v.trim().isEmpty)) {
+                              if (!_isLogin &&
+                                  (v == null || v.trim().isEmpty)) {
                                 return 'Please enter your name';
                               }
                               return null;
@@ -181,7 +188,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ],
 
                         // ── Email ──
-                        _FieldLabel('Email Address'),
+                        const _FieldLabel('Email Address'),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _emailController,
@@ -208,7 +215,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _FieldLabel('Password'),
+                            const _FieldLabel('Password'),
                             if (_isLogin)
                               GestureDetector(
                                 onTap: _forgotPassword,
@@ -233,9 +240,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             prefixIcon: const Icon(LucideIcons.lock, size: 18),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscure
-                                    ? LucideIcons.eye
-                                    : LucideIcons.eyeOff,
+                                _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
                                 size: 18,
                                 color: AppColors.textTertiary,
                               ),
@@ -257,8 +262,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(LucideIcons.checkCircle,
-                                  size: 13, color: AppColors.accent),
+                              const Icon(
+                                LucideIcons.checkCircle,
+                                size: 13,
+                                color: AppColors.accent,
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 'MINIMUM 6 CHARACTERS',
@@ -278,21 +286,26 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: AppColors.error.withAlpha(20),
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.sm),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
                               border: Border.all(
-                                  color: AppColors.error.withAlpha(50)),
+                                color: AppColors.error.withAlpha(50),
+                              ),
                             ),
                             child: Row(
                               children: [
-                                const Icon(LucideIcons.alertCircle,
-                                    size: 16, color: AppColors.error),
+                                const Icon(
+                                  LucideIcons.alertCircle,
+                                  size: 16,
+                                  color: AppColors.error,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     _error!,
                                     style: const TextStyle(
-                                        color: AppColors.error, fontSize: 13),
+                                      color: AppColors.error,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -338,7 +351,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                     ? 'New to Strivo?  '
                                     : 'Already a member?  ',
                                 style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textSecondary),
+                                  color: AppColors.textSecondary,
+                                ),
                                 children: [
                                   TextSpan(
                                     text: _isLogin ? 'Sign Up' : 'Log In',
@@ -366,8 +380,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 }
 
 class _FieldLabel extends StatelessWidget {
-  final String text;
   const _FieldLabel(this.text);
+  final String text;
 
   @override
   Widget build(BuildContext context) {
@@ -376,10 +390,10 @@ class _FieldLabel extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
-            ),
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.2,
+        ),
       ),
     );
   }

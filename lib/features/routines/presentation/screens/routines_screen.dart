@@ -1,22 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:strivo/core/services/firestore_sync_service.dart';
+import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
-import 'package:strivo/core/services/hive_service.dart';
-import 'package:strivo/core/services/firestore_sync_service.dart';
-import 'package:strivo/features/workout/domain/entities/routine.dart';
-import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
+import 'package:strivo/features/workout/domain/entities/routine.dart';
+import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
 
 // ── Routines Provider ──
-final routinesProvider =
-    StateNotifierProvider<RoutinesNotifier, List<Routine>>((ref) {
-  return RoutinesNotifier();
-});
+final routinesProvider = StateNotifierProvider<RoutinesNotifier, List<Routine>>(
+  (ref) {
+    return RoutinesNotifier();
+  },
+);
 
 class RoutinesNotifier extends StateNotifier<List<Routine>> {
   RoutinesNotifier() : super([]) {
@@ -26,13 +29,13 @@ class RoutinesNotifier extends StateNotifier<List<Routine>> {
   Future<void> saveRoutine(Routine routine) async {
     await HiveService.saveRoutine(routine);
     state = HiveService.getAllRoutines();
-    FirestoreSyncService.instance.syncRoutine(routine);
+    unawaited(FirestoreSyncService.instance.syncRoutine(routine));
   }
 
   Future<void> deleteRoutine(String id) async {
     await HiveService.deleteRoutine(id);
     state = HiveService.getAllRoutines();
-    FirestoreSyncService.instance.deleteRoutine(id);
+    unawaited(FirestoreSyncService.instance.deleteRoutine(id));
   }
 
   void refresh() {
@@ -64,8 +67,10 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_tab == 0 ? 'Routines' : 'Programs',
-                      style: theme.textTheme.displayMedium),
+                  Text(
+                    _tab == 0 ? 'Routines' : 'Programs',
+                    style: theme.textTheme.displayMedium,
+                  ),
                   ElevatedButton.icon(
                     onPressed: () => _tab == 0
                         ? context.push('/routines/builder')
@@ -74,7 +79,9 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
                     label: const Text('New'),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                 ],
@@ -125,10 +132,9 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
             label,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color:
-                      selected ? AppColors.primary : AppColors.textSecondary,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
           ),
         ),
       ),
@@ -164,7 +170,7 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
                 ref
                     .read(activeWorkoutProvider.notifier)
                     .startWorkout(routine: routine);
-                context.push('/workout/active');
+                unawaited(context.push('/workout/active'));
               }
             },
             onEdit: () =>
@@ -201,11 +207,15 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
             program: program,
             isActive: program.id == activeId,
             onSetActive: () {
-              ref.read(activeProgramIdProvider.notifier).set(program.id);
+              unawaited(
+                ref.read(activeProgramIdProvider.notifier).set(program.id),
+              );
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                    content: Text(
-                        '"${program.name}" is active — see today\'s workout on Home')),
+                  content: Text(
+                    '"${program.name}" is active — see today\'s workout on Home',
+                  ),
+                ),
               );
             },
             onEdit: () =>
@@ -235,14 +245,20 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
           children: [
             Icon(icon, size: 56, color: AppColors.textTertiary),
             const SizedBox(height: 16),
-            Text(title,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(color: AppColors.textSecondary)),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(subtitle,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: AppColors.textTertiary)),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
+            ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onTap,
@@ -256,67 +272,84 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
   }
 
   void _activeWorkoutDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Active Workout'),
-        content: const Text(
-            'You have an active workout. Finish or discard it first.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.push('/workout/active');
-            },
-            child: const Text('Go to Workout'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Active Workout'),
+          content: const Text(
+            'You have an active workout. Finish or discard it first.',
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                unawaited(context.push('/workout/active'));
+              },
+              child: const Text('Go to Workout'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _confirmDeleteRoutine(Routine routine) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Routine?'),
-        content: Text('Are you sure you want to delete "${routine.name}"?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              ref.read(routinesProvider.notifier).deleteRoutine(routine.id);
-              Navigator.pop(ctx);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete Routine?'),
+          content: Text('Are you sure you want to delete "${routine.name}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                unawaited(
+                  ref.read(routinesProvider.notifier).deleteRoutine(routine.id),
+                );
+                Navigator.pop(ctx);
+              },
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   void _confirmDeleteProgram(Program program) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Program?'),
-        content: Text('Delete "${program.name}" and its plan?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () {
-              ref.read(programsProvider.notifier).delete(program.id);
-              Navigator.pop(ctx);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Delete Program?'),
+          content: Text('Delete "${program.name}" and its plan?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                unawaited(
+                  ref.read(programsProvider.notifier).delete(program.id),
+                );
+                Navigator.pop(ctx);
+              },
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Delete'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -324,13 +357,6 @@ class _RoutinesScreenState extends ConsumerState<RoutinesScreen> {
 
 // ── Program Card ──
 class _ProgramCard extends StatelessWidget {
-  final Program program;
-  final bool isActive;
-  final VoidCallback onSetActive;
-  final VoidCallback onEdit;
-  final VoidCallback onRestart;
-  final VoidCallback onDelete;
-
   const _ProgramCard({
     required this.program,
     required this.isActive,
@@ -339,6 +365,12 @@ class _ProgramCard extends StatelessWidget {
     required this.onRestart,
     required this.onDelete,
   });
+  final Program program;
+  final bool isActive;
+  final VoidCallback onSetActive;
+  final VoidCallback onEdit;
+  final VoidCallback onRestart;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -356,34 +388,44 @@ class _ProgramCard extends StatelessWidget {
                   child: Row(
                     children: [
                       Flexible(
-                        child: Text(program.name,
-                            style: theme.textTheme.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          program.name,
+                          style: theme.textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       if (isActive) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.accent.withAlpha(28),
                             borderRadius: BorderRadius.circular(AppRadius.full),
                           ),
-                          child: Text('ACTIVE',
-                              style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                  color: AppColors.accent)),
+                          child: const Text(
+                            'ACTIVE',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5,
+                              color: AppColors.accent,
+                            ),
+                          ),
                         ),
                       ],
                     ],
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: Icon(LucideIcons.moreVertical,
-                      size: 18, color: AppColors.textTertiary),
+                  icon: const Icon(
+                    LucideIcons.moreVertical,
+                    size: 18,
+                    color: AppColors.textTertiary,
+                  ),
                   onSelected: (v) {
                     if (v == 'edit') onEdit();
                     if (v == 'restart') onRestart();
@@ -392,11 +434,15 @@ class _ProgramCard extends StatelessWidget {
                   itemBuilder: (_) => [
                     const PopupMenuItem(value: 'edit', child: Text('Edit')),
                     const PopupMenuItem(
-                        value: 'restart', child: Text('Restart progress')),
+                      value: 'restart',
+                      child: Text('Restart progress'),
+                    ),
                     const PopupMenuItem(
                       value: 'delete',
-                      child: Text('Delete',
-                          style: TextStyle(color: AppColors.error)),
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(color: AppColors.error),
+                      ),
                     ),
                   ],
                 ),
@@ -407,8 +453,9 @@ class _ProgramCard extends StatelessWidget {
               program.isOngoing
                   ? '${program.dayCount}-day rotation · ongoing'
                   : '${program.durationWeeks} weeks · ${program.dayCount} days/week',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
             if (!program.isOngoing) ...[
               const SizedBox(height: 12),
@@ -442,17 +489,21 @@ class _ProgramCard extends StatelessWidget {
                     program.isComplete
                         ? 'Completed 🎉 — restart to run again'
                         : '${program.positionLabel}${day != null ? ' · Next: ${day.name}' : ''}',
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 8),
                 if (isActive)
-                  Text('Active',
-                      style: theme.textTheme.labelSmall
-                          ?.copyWith(color: AppColors.accent))
+                  Text(
+                    'Active',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppColors.accent,
+                    ),
+                  )
                 else
                   TextButton(
                     onPressed: onSetActive,
@@ -472,17 +523,16 @@ class _ProgramCard extends StatelessWidget {
 }
 
 class _RoutineDetailCard extends StatelessWidget {
-  final Routine routine;
-  final VoidCallback onStart;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-
   const _RoutineDetailCard({
     required this.routine,
     required this.onStart,
     required this.onEdit,
     required this.onDelete,
   });
+  final Routine routine;
+  final VoidCallback onStart;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -506,9 +556,7 @@ class _RoutineDetailCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           routine.description!,
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
+                          style: Theme.of(context).textTheme.bodySmall
                               ?.copyWith(color: AppColors.textTertiary),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -518,8 +566,11 @@ class _RoutineDetailCard extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: Icon(LucideIcons.moreVertical,
-                      size: 18, color: AppColors.textTertiary),
+                  icon: const Icon(
+                    LucideIcons.moreVertical,
+                    size: 18,
+                    color: AppColors.textTertiary,
+                  ),
                   onSelected: (v) {
                     if (v == 'edit') onEdit();
                     if (v == 'delete') onDelete();
@@ -528,54 +579,56 @@ class _RoutineDetailCard extends StatelessWidget {
                     const PopupMenuItem(value: 'edit', child: Text('Edit')),
                     const PopupMenuItem(
                       value: 'delete',
-                      child: Text('Delete',
-                          style: TextStyle(color: AppColors.error)),
+                      child: Text(
+                        'Delete',
+                        style: TextStyle(color: AppColors.error),
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            ...routine.exercises.take(4).map((re) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
+            ...routine.exercises
+                .take(4)
+                .map(
+                  (re) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${re.exercise.name} • ${re.targetSets}×${re.targetReps}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textSecondary),
-                      ),
-                    ],
+                        const SizedBox(width: 8),
+                        Text(
+                          '${re.exercise.name} • ${re.targetSets}×${re.targetReps}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
                   ),
-                )),
+                ),
             if (routine.exercises.length > 4)
               Text(
                 '+${routine.exercises.length - 4} more exercises',
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: AppColors.textTertiary),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
               ),
             const SizedBox(height: 14),
             Row(
               children: [
                 Text(
                   '${routine.exerciseCount} exercises • ${routine.totalTargetSets} sets',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 const Spacer(),
                 ElevatedButton.icon(
@@ -584,7 +637,9 @@ class _RoutineDetailCard extends StatelessWidget {
                   label: const Text('Start'),
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                   ),
                 ),
               ],

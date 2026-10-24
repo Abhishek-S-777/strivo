@@ -1,28 +1,30 @@
-# This file configures the analyzer, which statically analyzes Dart code to
-# check for errors, warnings, and lints.
+# Static analysis configuration for Strivo.
 #
-# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
-# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
-# invoked from the command line by running `flutter analyze`.
+# Adopts the very_good_analysis ruleset (a strict superset of flutter_lints)
+# and enables the analyzer's strict type-checking modes. Run with
+# `flutter analyze`; it is also enforced in CI on every pull request.
+include: package:very_good_analysis/analysis_options.yaml
 
-# The following line activates a set of recommended lints for Flutter apps,
-# packages, and plugins designed to encourage good coding practices.
-include: package:flutter_lints/flutter.yaml
+analyzer:
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  # Generated / tool-owned files are not hand-maintained, so they are excluded
+  # from analysis. firebase_options.dart is produced by the FlutterFire CLI.
+  exclude:
+    - lib/firebase_options.dart
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - build/**
 
 linter:
-  # The lint rules applied to this project can be customized in the
-  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
-  # included above or to enable additional rules. A list of all available lints
-  # and their documentation is published at https://dart.dev/lints.
-  #
-  # Instead of disabling a lint rule for the entire project in the
-  # section below, it can also be suppressed for a single line of code
-  # or a specific dart file by using the `// ignore: name_of_lint` and
-  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
-  # producing the lint.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
-
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+    # Strivo is a single application, not a published package, so it does not
+    # document every public member or declare a library-level doc comment.
+    public_member_api_docs: false
+    # Keep flutter_riverpod/go_router ternaries and widget trees readable
+    # without forcing an explicit return type on short closures.
+    lines_longer_than_80_chars: false
+    # pubspec dependencies are grouped by purpose with headings, which reads
+    # better than a single flat alphabetical list.
+    sort_pub_dependencies: false

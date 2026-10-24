@@ -7,17 +7,23 @@ import 'package:strivo/features/workout/domain/entities/exercise.dart';
 /// the app pre-fills load from their history so they progress week to week.
 @immutable
 class SetTarget {
-  final int sets;
-  final int repsMin;
-  final int? repsMax; // null or == repsMin → single number
-  final double? rpe;
-
   const SetTarget({
     required this.sets,
     required this.repsMin,
     this.repsMax,
     this.rpe,
   });
+
+  factory SetTarget.fromMap(Map<String, dynamic> map) => SetTarget(
+    sets: map['sets'] as int? ?? 3,
+    repsMin: map['repsMin'] as int? ?? 8,
+    repsMax: map['repsMax'] as int?,
+    rpe: (map['rpe'] as num?)?.toDouble(),
+  );
+  final int sets;
+  final int repsMin;
+  final int? repsMax; // null or == repsMin → single number
+  final double? rpe;
 
   /// "3 × 8" or "3 × 8-10"
   String get display {
@@ -41,34 +47,36 @@ class SetTarget {
       );
 
   Map<String, dynamic> toMap() => {
-        'sets': sets,
-        'repsMin': repsMin,
-        'repsMax': repsMax,
-        'rpe': rpe,
-      };
-
-  factory SetTarget.fromMap(Map<String, dynamic> map) => SetTarget(
-        sets: map['sets'] as int? ?? 3,
-        repsMin: map['repsMin'] as int? ?? 8,
-        repsMax: map['repsMax'] as int?,
-        rpe: (map['rpe'] as num?)?.toDouble(),
-      );
+    'sets': sets,
+    'repsMin': repsMin,
+    'repsMax': repsMax,
+    'rpe': rpe,
+  };
 }
 
 /// An exercise inside a program day, with one [SetTarget] per program week.
 @immutable
 class ProgramExercise {
-  final String id;
-  final Exercise exercise;
-
-  /// One target per week; index 0 = week 1. Length tracks the program duration.
-  final List<SetTarget> weeklyTargets;
-
   const ProgramExercise({
     required this.id,
     required this.exercise,
     required this.weeklyTargets,
   });
+
+  factory ProgramExercise.fromMap(Map<String, dynamic> map) => ProgramExercise(
+    id: map['id'] as String,
+    exercise: Exercise.fromMap(map['exercise'] as Map<String, dynamic>),
+    weeklyTargets:
+        (map['weeklyTargets'] as List?)
+            ?.map((t) => SetTarget.fromMap(t as Map<String, dynamic>))
+            .toList() ??
+        const [],
+  );
+  final String id;
+  final Exercise exercise;
+
+  /// One target per week; index 0 = week 1. Length tracks the program duration.
+  final List<SetTarget> weeklyTargets;
 
   /// Target for a 1-based [week], clamped to the available range.
   SetTarget targetForWeek(int week) {
@@ -83,12 +91,11 @@ class ProgramExercise {
     String? id,
     Exercise? exercise,
     List<SetTarget>? weeklyTargets,
-  }) =>
-      ProgramExercise(
-        id: id ?? this.id,
-        exercise: exercise ?? this.exercise,
-        weeklyTargets: weeklyTargets ?? this.weeklyTargets,
-      );
+  }) => ProgramExercise(
+    id: id ?? this.id,
+    exercise: exercise ?? this.exercise,
+    weeklyTargets: weeklyTargets ?? this.weeklyTargets,
+  );
 
   /// Resize the weekly targets to [weeks], repeating the last target when
   /// growing and truncating when shrinking.
@@ -105,59 +112,49 @@ class ProgramExercise {
   }
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'exercise': exercise.toMap(),
-        'weeklyTargets': weeklyTargets.map((t) => t.toMap()).toList(),
-      };
-
-  factory ProgramExercise.fromMap(Map<String, dynamic> map) => ProgramExercise(
-        id: map['id'] as String,
-        exercise: Exercise.fromMap(map['exercise'] as Map<String, dynamic>),
-        weeklyTargets: (map['weeklyTargets'] as List?)
-                ?.map((t) => SetTarget.fromMap(t as Map<String, dynamic>))
-                .toList() ??
-            const [],
-      );
+    'id': id,
+    'exercise': exercise.toMap(),
+    'weeklyTargets': weeklyTargets.map((t) => t.toMap()).toList(),
+  };
 }
 
 /// One training day in a program's weekly cycle (e.g. "Upper A", "Push").
 @immutable
 class ProgramDay {
-  final String id;
-  final String name;
-  final List<ProgramExercise> exercises;
-
   const ProgramDay({
     required this.id,
     required this.name,
     required this.exercises,
   });
 
+  factory ProgramDay.fromMap(Map<String, dynamic> map) => ProgramDay(
+    id: map['id'] as String,
+    name: map['name'] as String,
+    exercises:
+        (map['exercises'] as List?)
+            ?.map((e) => ProgramExercise.fromMap(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
+  );
+  final String id;
+  final String name;
+  final List<ProgramExercise> exercises;
+
   ProgramDay copyWith({
     String? id,
     String? name,
     List<ProgramExercise>? exercises,
-  }) =>
-      ProgramDay(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        exercises: exercises ?? this.exercises,
-      );
+  }) => ProgramDay(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    exercises: exercises ?? this.exercises,
+  );
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-        'exercises': exercises.map((e) => e.toMap()).toList(),
-      };
-
-  factory ProgramDay.fromMap(Map<String, dynamic> map) => ProgramDay(
-        id: map['id'] as String,
-        name: map['name'] as String,
-        exercises: (map['exercises'] as List?)
-                ?.map((e) => ProgramExercise.fromMap(e as Map<String, dynamic>))
-                .toList() ??
-            const [],
-      );
+    'id': id,
+    'name': name,
+    'exercises': exercises.map((e) => e.toMap()).toList(),
+  };
 }
 
 /// A structured training plan: a repeating weekly cycle of [days] run for
@@ -166,29 +163,17 @@ class ProgramDay {
 /// advances when a session is completed.
 @immutable
 class Program {
-  final String id;
-  final String name;
-  final String? description;
-  final int durationWeeks; // 0 = ongoing/cyclic
-  final List<ProgramDay> days;
-  final int currentWeek; // 1-based
-  final int currentDayIndex; // 0-based into days
-  final bool isComplete;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final int timesCompleted;
-
   const Program({
     required this.id,
     required this.name,
-    this.description,
     required this.durationWeeks,
     required this.days,
+    required this.createdAt,
+    required this.updatedAt,
+    this.description,
     this.currentWeek = 1,
     this.currentDayIndex = 0,
     this.isComplete = false,
-    required this.createdAt,
-    required this.updatedAt,
     this.timesCompleted = 0,
   });
 
@@ -208,6 +193,35 @@ class Program {
       updatedAt: now,
     );
   }
+
+  factory Program.fromMap(Map<String, dynamic> map) => Program(
+    id: map['id'] as String,
+    name: map['name'] as String,
+    description: map['description'] as String?,
+    durationWeeks: map['durationWeeks'] as int? ?? 12,
+    days:
+        (map['days'] as List?)
+            ?.map((d) => ProgramDay.fromMap(d as Map<String, dynamic>))
+            .toList() ??
+        const [],
+    currentWeek: map['currentWeek'] as int? ?? 1,
+    currentDayIndex: map['currentDayIndex'] as int? ?? 0,
+    isComplete: map['isComplete'] as bool? ?? false,
+    createdAt: DateTime.parse(map['createdAt'] as String),
+    updatedAt: DateTime.parse(map['updatedAt'] as String),
+    timesCompleted: map['timesCompleted'] as int? ?? 0,
+  );
+  final String id;
+  final String name;
+  final String? description;
+  final int durationWeeks; // 0 = ongoing/cyclic
+  final List<ProgramDay> days;
+  final int currentWeek; // 1-based
+  final int currentDayIndex; // 0-based into days
+  final bool isComplete;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final int timesCompleted;
 
   bool get isOngoing => durationWeeks <= 0;
   int get dayCount => days.length;
@@ -265,11 +279,11 @@ class Program {
 
   /// Reset the pointer to the very start.
   Program restarted() => copyWith(
-        currentWeek: 1,
-        currentDayIndex: 0,
-        isComplete: false,
-        updatedAt: DateTime.now(),
-      );
+    currentWeek: 1,
+    currentDayIndex: 0,
+    isComplete: false,
+    updatedAt: DateTime.now(),
+  );
 
   Program copyWith({
     String? id,
@@ -283,51 +297,33 @@ class Program {
     DateTime? createdAt,
     DateTime? updatedAt,
     int? timesCompleted,
-  }) =>
-      Program(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        description: description ?? this.description,
-        durationWeeks: durationWeeks ?? this.durationWeeks,
-        days: days ?? this.days,
-        currentWeek: currentWeek ?? this.currentWeek,
-        currentDayIndex: currentDayIndex ?? this.currentDayIndex,
-        isComplete: isComplete ?? this.isComplete,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        timesCompleted: timesCompleted ?? this.timesCompleted,
-      );
+  }) => Program(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    description: description ?? this.description,
+    durationWeeks: durationWeeks ?? this.durationWeeks,
+    days: days ?? this.days,
+    currentWeek: currentWeek ?? this.currentWeek,
+    currentDayIndex: currentDayIndex ?? this.currentDayIndex,
+    isComplete: isComplete ?? this.isComplete,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    timesCompleted: timesCompleted ?? this.timesCompleted,
+  );
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'name': name,
-        'description': description,
-        'durationWeeks': durationWeeks,
-        'days': days.map((d) => d.toMap()).toList(),
-        'currentWeek': currentWeek,
-        'currentDayIndex': currentDayIndex,
-        'isComplete': isComplete,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-        'timesCompleted': timesCompleted,
-      };
-
-  factory Program.fromMap(Map<String, dynamic> map) => Program(
-        id: map['id'] as String,
-        name: map['name'] as String,
-        description: map['description'] as String?,
-        durationWeeks: map['durationWeeks'] as int? ?? 12,
-        days: (map['days'] as List?)
-                ?.map((d) => ProgramDay.fromMap(d as Map<String, dynamic>))
-                .toList() ??
-            const [],
-        currentWeek: map['currentWeek'] as int? ?? 1,
-        currentDayIndex: map['currentDayIndex'] as int? ?? 0,
-        isComplete: map['isComplete'] as bool? ?? false,
-        createdAt: DateTime.parse(map['createdAt'] as String),
-        updatedAt: DateTime.parse(map['updatedAt'] as String),
-        timesCompleted: map['timesCompleted'] as int? ?? 0,
-      );
+    'id': id,
+    'name': name,
+    'description': description,
+    'durationWeeks': durationWeeks,
+    'days': days.map((d) => d.toMap()).toList(),
+    'currentWeek': currentWeek,
+    'currentDayIndex': currentDayIndex,
+    'isComplete': isComplete,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'timesCompleted': timesCompleted,
+  };
 
   @override
   bool operator ==(Object other) =>

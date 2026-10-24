@@ -4,9 +4,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 
 class MainShell extends StatelessWidget {
+  const MainShell({required this.child, super.key});
   final Widget child;
-
-  const MainShell({super.key, required this.child});
 
   int _getSelectedIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
@@ -36,20 +35,16 @@ class MainShell extends StatelessWidget {
             switch (index) {
               case 0:
                 context.go('/');
-                break;
               case 1:
                 context.go('/routines');
-                break;
               case 2:
                 context.go('/analytics');
-                break;
               // Progress tab temporarily disabled.
               // case 3:
               //   context.go('/progress');
               //   break;
               case 3:
                 context.go('/profile');
-                break;
             }
           },
           backgroundColor: AppColors.surface,
@@ -60,20 +55,29 @@ class MainShell extends StatelessWidget {
           destinations: const [
             NavigationDestination(
               icon: Icon(LucideIcons.dumbbell, size: 20),
-              selectedIcon: Icon(LucideIcons.dumbbell,
-                  size: 20, color: AppColors.primary),
+              selectedIcon: Icon(
+                LucideIcons.dumbbell,
+                size: 20,
+                color: AppColors.primary,
+              ),
               label: 'Home',
             ),
             NavigationDestination(
               icon: Icon(LucideIcons.clipboardList, size: 20),
-              selectedIcon: Icon(LucideIcons.clipboardList,
-                  size: 20, color: AppColors.primary),
+              selectedIcon: Icon(
+                LucideIcons.clipboardList,
+                size: 20,
+                color: AppColors.primary,
+              ),
               label: 'Routines',
             ),
             NavigationDestination(
               icon: Icon(LucideIcons.barChart3, size: 20),
-              selectedIcon: Icon(LucideIcons.barChart3,
-                  size: 20, color: AppColors.primary),
+              selectedIcon: Icon(
+                LucideIcons.barChart3,
+                size: 20,
+                color: AppColors.primary,
+              ),
               label: 'Analytics',
             ),
             // Progress tab temporarily disabled.
@@ -85,8 +89,11 @@ class MainShell extends StatelessWidget {
             // ),
             NavigationDestination(
               icon: Icon(LucideIcons.user, size: 20),
-              selectedIcon:
-                  Icon(LucideIcons.user, size: 20, color: AppColors.primary),
+              selectedIcon: Icon(
+                LucideIcons.user,
+                size: 20,
+                color: AppColors.primary,
+              ),
               label: 'Profile',
             ),
           ],

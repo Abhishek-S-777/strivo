@@ -2,7 +2,7 @@
 
 **Premium, offline‑first gym workout tracker for serious lifters.** Fast logging, strength analytics, smart insights, and cloud backup — dark‑mode only, no social clutter.
 
-![status](https://img.shields.io/badge/flutter-3.38-blue) ![status](https://img.shields.io/badge/state-Riverpod-7c4dff) ![status](https://img.shields.io/badge/backend-Firebase-orange)
+[![CI](https://github.com/Abhishek-S-777/strivo/actions/workflows/ci.yaml/badge.svg)](https://github.com/Abhishek-S-777/strivo/actions/workflows/ci.yaml) ![status](https://img.shields.io/badge/flutter-3.38-blue) ![status](https://img.shields.io/badge/state-Riverpod-7c4dff) ![status](https://img.shields.io/badge/backend-Firebase-orange)
 
 ## Highlights
 

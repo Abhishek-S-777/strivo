@@ -1,12 +1,14 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:strivo/core/logging/app_logger.dart';
 import 'package:strivo/core/services/hive_service.dart';
-import 'package:strivo/features/workout/domain/entities/workout_session.dart';
-import 'package:strivo/features/workout/domain/entities/routine.dart';
-import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
+import 'package:strivo/features/workout/domain/entities/exercise.dart';
+import 'package:strivo/features/workout/domain/entities/routine.dart';
+import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 
 /// Provider for the current Firebase Auth user
 final firebaseUserProvider = StreamProvider<User?>((ref) {
@@ -21,14 +23,15 @@ final isCloudSyncEnabledProvider = Provider<bool>((ref) {
 
 /// Firestore sync service — manages cloud backup of workouts/routines
 class FirestoreSyncService {
+  FirestoreSyncService._() : _db = FirebaseFirestore.instance;
   static FirestoreSyncService? _instance;
   final FirebaseFirestore _db;
 
-  FirestoreSyncService._() : _db = FirebaseFirestore.instance;
-
+  // Singleton accessor; a factory constructor is intentionally not used so
+  // callers read as `FirestoreSyncService.instance`.
+  // ignore: prefer_constructors_over_static_methods
   static FirestoreSyncService get instance {
-    _instance ??= FirestoreSyncService._();
-    return _instance!;
+    return _instance ??= FirestoreSyncService._();
   }
 
   String? get _userId => FirebaseAuth.instance.currentUser?.uid;
@@ -45,12 +48,16 @@ class FirestoreSyncService {
     if (_userId == null) return;
     try {
       await _sessionsRef.doc(session.id).set(
-            {...session.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
-            SetOptions(merge: true),
-          );
-      debugPrint('☁️ Synced session: ${session.name}');
-    } catch (e) {
-      debugPrint('⚠️ Failed to sync session: $e');
+        {...session.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+      AppLogger.debug('Synced session: ${session.name}');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to sync session',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -65,8 +72,12 @@ class FirestoreSyncService {
       return snapshot.docs
           .map((doc) => WorkoutSession.fromMap(doc.data()))
           .toList();
-    } catch (e) {
-      debugPrint('⚠️ Failed to fetch sessions: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to fetch sessions',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -76,8 +87,12 @@ class FirestoreSyncService {
     if (_userId == null) return;
     try {
       await _sessionsRef.doc(sessionId).delete();
-    } catch (e) {
-      debugPrint('⚠️ Failed to delete session from cloud: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to delete session from cloud',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -93,12 +108,16 @@ class FirestoreSyncService {
     if (_userId == null) return;
     try {
       await _routinesRef.doc(routine.id).set(
-            {...routine.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
-            SetOptions(merge: true),
-          );
-      debugPrint('☁️ Synced routine: ${routine.name}');
-    } catch (e) {
-      debugPrint('⚠️ Failed to sync routine: $e');
+        {...routine.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+      AppLogger.debug('Synced routine: ${routine.name}');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to sync routine',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -107,11 +126,13 @@ class FirestoreSyncService {
     if (_userId == null) return [];
     try {
       final snapshot = await _routinesRef.get();
-      return snapshot.docs
-          .map((doc) => Routine.fromMap(doc.data()))
-          .toList();
-    } catch (e) {
-      debugPrint('⚠️ Failed to fetch routines: $e');
+      return snapshot.docs.map((doc) => Routine.fromMap(doc.data())).toList();
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to fetch routines',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -121,8 +142,12 @@ class FirestoreSyncService {
     if (_userId == null) return;
     try {
       await _routinesRef.doc(routineId).delete();
-    } catch (e) {
-      debugPrint('⚠️ Failed to delete routine from cloud: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to delete routine from cloud',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -137,12 +162,16 @@ class FirestoreSyncService {
     if (_userId == null) return;
     try {
       await _programsRef.doc(program.id).set(
-            {...program.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
-            SetOptions(merge: true),
-          );
-      debugPrint('☁️ Synced program: ${program.name}');
-    } catch (e) {
-      debugPrint('⚠️ Failed to sync program: $e');
+        {...program.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+      AppLogger.debug('Synced program: ${program.name}');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to sync program',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -151,8 +180,12 @@ class FirestoreSyncService {
     try {
       final snapshot = await _programsRef.get();
       return snapshot.docs.map((doc) => Program.fromMap(doc.data())).toList();
-    } catch (e) {
-      debugPrint('⚠️ Failed to fetch programs: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to fetch programs',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -161,8 +194,12 @@ class FirestoreSyncService {
     if (_userId == null) return;
     try {
       await _programsRef.doc(programId).delete();
-    } catch (e) {
-      debugPrint('⚠️ Failed to delete program from cloud: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to delete program from cloud',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -180,12 +217,16 @@ class FirestoreSyncService {
     if (_userId == null || !exercise.isCustom) return;
     try {
       await _exercisesRef.doc(exercise.id).set(
-            {...exercise.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
-            SetOptions(merge: true),
-          );
-      debugPrint('☁️ Synced exercise: ${exercise.name}');
-    } catch (e) {
-      debugPrint('⚠️ Failed to sync exercise: $e');
+        {...exercise.toMap(), 'syncedAt': FieldValue.serverTimestamp()},
+        SetOptions(merge: true),
+      );
+      AppLogger.debug('Synced exercise: ${exercise.name}');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to sync exercise',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -195,8 +236,12 @@ class FirestoreSyncService {
     try {
       final snapshot = await _exercisesRef.get();
       return snapshot.docs.map((doc) => Exercise.fromMap(doc.data())).toList();
-    } catch (e) {
-      debugPrint('⚠️ Failed to fetch exercises: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to fetch exercises',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -224,8 +269,12 @@ class FirestoreSyncService {
         'lastPerformed': lastPerformed.toIso8601String(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('⚠️ Failed to update exercise history: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to update exercise history',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -244,8 +293,12 @@ class FirestoreSyncService {
         'preferences': prefs,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('⚠️ Failed to save preferences: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to save preferences',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -255,8 +308,12 @@ class FirestoreSyncService {
     try {
       final doc = await _userDoc.get();
       return doc.data()?['preferences'] as Map<String, dynamic>?;
-    } catch (e) {
-      debugPrint('⚠️ Failed to fetch preferences: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to fetch preferences',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -275,8 +332,12 @@ class FirestoreSyncService {
       if (displayName != null) data['displayName'] = displayName;
       if (email != null) data['email'] = email;
       await _userDoc.set(data, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('⚠️ Failed to save user profile: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Failed to save user profile',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -328,15 +389,18 @@ class FirestoreSyncService {
     _rebuildExerciseHistory(sessions);
 
     await HiveService.saveSetting('last_synced_uid', uid);
-    debugPrint(
-        '☁️ Restored ${sessions.length} sessions, ${routines.length} routines, ${programs.length} programs from cloud');
+    AppLogger.debug(
+      'Restored ${sessions.length} sessions, ${routines.length} routines, '
+      '${programs.length} programs from cloud',
+    );
     return (sessions: sessions.length, routines: routines.length);
   }
 
   /// Push all local data up to the cloud (used after first sign-up so any
   /// pre-existing local data is backed up).
   Future<void> pushAllLocal() async {
-    if (_userId == null) return;
+    final uid = _userId;
+    if (uid == null) return;
     for (final s in HiveService.getAllSessions()) {
       await syncSession(s);
     }
@@ -349,7 +413,7 @@ class FirestoreSyncService {
     for (final ex in HiveService.getAllExercises().where((e) => e.isCustom)) {
       await syncExercise(ex);
     }
-    await HiveService.saveSetting('last_synced_uid', _userId!);
+    await HiveService.saveSetting('last_synced_uid', uid);
   }
 
   /// Re-add any exercise embedded in the given records whose id is missing
@@ -406,8 +470,9 @@ class FirestoreSyncService {
           maxWeight[id] = (maxWeight[id] ?? 0) < s.weight
               ? s.weight
               : (maxWeight[id] ?? 0);
-          maxVolume[id] =
-              (maxVolume[id] ?? 0) < s.volume ? s.volume : (maxVolume[id] ?? 0);
+          maxVolume[id] = (maxVolume[id] ?? 0) < s.volume
+              ? s.volume
+              : (maxVolume[id] ?? 0);
           names[id] = we.exercise.name;
           final prev = lastDate[id];
           if (prev == null || session.startTime.isAfter(prev)) {
@@ -418,12 +483,14 @@ class FirestoreSyncService {
     }
 
     for (final id in maxWeight.keys) {
-      HiveService.updateExerciseHistory(id, {
-        'maxWeight': maxWeight[id],
-        'maxVolume': maxVolume[id],
-        'lastPerformed': lastDate[id]?.toIso8601String(),
-        'exerciseName': names[id],
-      });
+      unawaited(
+        HiveService.updateExerciseHistory(id, {
+          'maxWeight': maxWeight[id],
+          'maxVolume': maxVolume[id],
+          'lastPerformed': lastDate[id]?.toIso8601String(),
+          'exerciseName': names[id],
+        }),
+      );
     }
   }
 }

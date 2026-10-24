@@ -1,22 +1,24 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/units/weight_unit.dart';
-import 'package:strivo/core/services/hive_service.dart';
-import 'package:strivo/features/workout/domain/entities/workout_session.dart';
-import 'package:strivo/features/workout/domain/entities/routine.dart';
-import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
+import 'package:strivo/features/analytics/presentation/providers/analytics_providers.dart';
+import 'package:strivo/features/analytics/presentation/providers/insights_engine.dart';
 import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
+import 'package:strivo/features/workout/domain/entities/routine.dart';
+import 'package:strivo/features/workout/domain/entities/workout_session.dart';
+import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
 import 'package:strivo/shared/widgets/volume_hero_card.dart';
-import 'package:strivo/features/analytics/presentation/providers/analytics_providers.dart';
-import 'package:strivo/features/analytics/presentation/providers/insights_engine.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -32,7 +34,8 @@ class HomeScreen extends ConsumerWidget {
     final firstName = _firstName(user?.displayName);
     ref.watch(weightUnitProvider); // rebuild when kg/lbs preference changes
     final activeProgram = ref.watch(activeProgramProvider);
-    final showProgram = activeProgram != null &&
+    final showProgram =
+        activeProgram != null &&
         !activeProgram.isComplete &&
         activeProgram.currentDay != null;
 
@@ -53,12 +56,12 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'STRIVO',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.5,
-                                  ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.5,
+                              ),
                         ),
                         if (activeWorkout != null)
                           _ActiveWorkoutBadge(workout: activeWorkout),
@@ -67,25 +70,25 @@ class HomeScreen extends ConsumerWidget {
                     const SizedBox(height: 24),
                     // Greeting
                     Text(
-                      DateFormat('EEEE, MMM d')
-                          .format(DateTime.now())
-                          .toUpperCase(),
+                      DateFormat(
+                        'EEEE, MMM d',
+                      ).format(DateTime.now()).toUpperCase(),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: AppColors.textTertiary,
-                            letterSpacing: 1.5,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        color: AppColors.textTertiary,
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       firstName == null
                           ? '${_getGreeting()}.'
                           : 'Welcome back, $firstName',
-                      style:
-                          Theme.of(context).textTheme.displayMedium?.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w700,
-                              ),
+                      style: Theme.of(context).textTheme.displayMedium
+                          ?.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                   ],
                 ),
@@ -100,8 +103,7 @@ class HomeScreen extends ConsumerWidget {
                   label: 'Volume This Week',
                   volumeKg: weeklyStats.totalVolume,
                   diffPercent: weeklyStats.volumeDiffPercent,
-                  sparkline:
-                      weeklyLoad.map((w) => w.totalVolume).toList(),
+                  sparkline: weeklyLoad.map((w) => w.totalVolume).toList(),
                   stats: [
                     HeroStat('Workouts', '${weeklyStats.workoutCount}'),
                     HeroStat('Sets', '${weeklyStats.totalSets}'),
@@ -133,12 +135,12 @@ class HomeScreen extends ConsumerWidget {
                         hasActiveWorkout: activeWorkout != null,
                         onStart: () {
                           if (activeWorkout != null) {
-                            context.push('/workout/active');
+                            unawaited(context.push('/workout/active'));
                           } else {
                             ref
                                 .read(activeWorkoutProvider.notifier)
                                 .startProgramDay(activeProgram);
-                            context.push('/workout/active');
+                            unawaited(context.push('/workout/active'));
                           }
                         },
                       ),
@@ -164,12 +166,12 @@ class HomeScreen extends ConsumerWidget {
                         hasActiveWorkout: activeWorkout != null,
                         onStart: () {
                           if (activeWorkout != null) {
-                            context.push('/workout/active');
+                            unawaited(context.push('/workout/active'));
                           } else {
                             ref
                                 .read(activeWorkoutProvider.notifier)
                                 .startWorkout(routine: routines.first);
-                            context.push('/workout/active');
+                            unawaited(context.push('/workout/active'));
                           }
                         },
                       ),
@@ -194,12 +196,12 @@ class HomeScreen extends ConsumerWidget {
                     _QuickStartButton(
                       onTap: () {
                         if (activeWorkout != null) {
-                          context.push('/workout/active');
+                          unawaited(context.push('/workout/active'));
                         } else {
                           ref
                               .read(activeWorkoutProvider.notifier)
                               .startWorkout();
-                          context.push('/workout/active');
+                          unawaited(context.push('/workout/active'));
                         }
                       },
                       hasActiveWorkout: activeWorkout != null,
@@ -235,7 +237,9 @@ class HomeScreen extends ConsumerWidget {
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 8),
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
                     itemCount: routines.length,
                     itemBuilder: (context, index) {
                       return _RoutineCard(
@@ -247,7 +251,7 @@ class HomeScreen extends ConsumerWidget {
                             ref
                                 .read(activeWorkoutProvider.notifier)
                                 .startWorkout(routine: routines[index]);
-                            context.push('/workout/active');
+                            unawaited(context.push('/workout/active'));
                           }
                         },
                       );
@@ -277,7 +281,7 @@ class HomeScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         children: [
-                          Icon(
+                          const Icon(
                             LucideIcons.dumbbell,
                             size: 48,
                             color: AppColors.textTertiary,
@@ -285,18 +289,14 @@ class HomeScreen extends ConsumerWidget {
                           const SizedBox(height: 16),
                           Text(
                             'No workouts yet',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(color: AppColors.textSecondary),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Start your first workout to begin tracking your progress',
                             textAlign: TextAlign.center,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AppColors.textTertiary),
                           ),
                         ],
@@ -341,25 +341,28 @@ class HomeScreen extends ConsumerWidget {
   }
 
   void _showActiveWorkoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Active Workout'),
-        content: const Text(
-            'You have an active workout in progress. Would you like to continue it?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Active Workout'),
+          content: const Text(
+            'You have an active workout in progress. Would you like to continue it?',
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.push('/workout/active');
-            },
-            child: const Text('Continue'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                unawaited(context.push('/workout/active'));
+              },
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -367,9 +370,8 @@ class HomeScreen extends ConsumerWidget {
 
 // ── Active Workout Badge ──
 class _ActiveWorkoutBadge extends StatelessWidget {
-  final WorkoutSession workout;
-
   const _ActiveWorkoutBadge({required this.workout});
+  final WorkoutSession workout;
 
   @override
   Widget build(BuildContext context) {
@@ -397,9 +399,9 @@ class _ActiveWorkoutBadge extends StatelessWidget {
             Text(
               'In Progress',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -410,15 +412,14 @@ class _ActiveWorkoutBadge extends StatelessWidget {
 
 // ── Next Routine Card (featured) ──
 class _NextRoutineCard extends StatelessWidget {
-  final Routine routine;
-  final bool hasActiveWorkout;
-  final VoidCallback onStart;
-
   const _NextRoutineCard({
     required this.routine,
     required this.hasActiveWorkout,
     required this.onStart,
   });
+  final Routine routine;
+  final bool hasActiveWorkout;
+  final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -460,8 +461,9 @@ class _NextRoutineCard extends StatelessWidget {
                 children: [
                   Text(
                     routine.name,
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -470,8 +472,9 @@ class _NextRoutineCard extends StatelessWidget {
                     muscles.isEmpty
                         ? '${routine.exerciseCount} exercises • ${routine.totalTargetSets} sets'
                         : '$muscles • ${routine.totalTargetSets} sets',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: AppColors.textSecondary),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -504,13 +507,12 @@ class _NextRoutineCard extends StatelessWidget {
 
 // ── Quick Start Button ──
 class _QuickStartButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final bool hasActiveWorkout;
-
   const _QuickStartButton({
     required this.onTap,
     required this.hasActiveWorkout,
   });
+  final VoidCallback onTap;
+  final bool hasActiveWorkout;
 
   @override
   Widget build(BuildContext context) {
@@ -558,23 +560,22 @@ class _QuickStartButton extends StatelessWidget {
                         ? 'Continue Workout'
                         : 'Start Empty Workout',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     hasActiveWorkout
                         ? 'Resume your active session'
                         : 'Start logging without a routine',
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textTertiary),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(
+            const Icon(
               LucideIcons.chevronRight,
               color: AppColors.primary,
               size: 20,
@@ -588,10 +589,9 @@ class _QuickStartButton extends StatelessWidget {
 
 // ── Routine Card (horizontal list) ──
 class _RoutineCard extends StatelessWidget {
+  const _RoutineCard({required this.routine, required this.onTap});
   final Routine routine;
   final VoidCallback onTap;
-
-  const _RoutineCard({required this.routine, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -622,10 +622,9 @@ class _RoutineCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${routine.exerciseCount} exercises',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ],
             ),
@@ -634,10 +633,9 @@ class _RoutineCard extends StatelessWidget {
               children: [
                 Text(
                   '${routine.timesUsed}x used',
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelSmall
-                      ?.copyWith(color: AppColors.textTertiary),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.all(6),
@@ -645,7 +643,7 @@ class _RoutineCard extends StatelessWidget {
                     color: AppColors.primary.withAlpha(20),
                     borderRadius: BorderRadius.circular(AppRadius.xs),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     LucideIcons.play,
                     size: 14,
                     color: AppColors.primary,
@@ -662,15 +660,14 @@ class _RoutineCard extends StatelessWidget {
 
 // ── Today's Program Workout Card ──
 class _TodayProgramCard extends StatelessWidget {
-  final Program program;
-  final bool hasActiveWorkout;
-  final VoidCallback onStart;
-
   const _TodayProgramCard({
     required this.program,
     required this.hasActiveWorkout,
     required this.onStart,
   });
+  final Program program;
+  final bool hasActiveWorkout;
+  final VoidCallback onStart;
 
   @override
   Widget build(BuildContext context) {
@@ -698,8 +695,11 @@ class _TodayProgramCard extends StatelessWidget {
             Positioned(
               right: -18,
               top: -18,
-              child: Icon(LucideIcons.calendarRange,
-                  size: 120, color: AppColors.primary.withAlpha(15)),
+              child: Icon(
+                LucideIcons.calendarRange,
+                size: 120,
+                color: AppColors.primary.withAlpha(15),
+              ),
             ),
             Padding(
               padding: const EdgeInsets.all(20),
@@ -710,35 +710,45 @@ class _TodayProgramCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withAlpha(28),
                           borderRadius: BorderRadius.circular(AppRadius.full),
                         ),
-                        child: Text(badge,
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.6,
-                              color: AppColors.primary,
-                            )),
+                        child: Text(
+                          badge,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: AppColors.primary,
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(program.name,
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(color: AppColors.textTertiary),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          program.name,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Text(day.name,
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
+                  Text(
+                    day.name,
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 10),
                   ...day.exercises.take(4).map((pe) {
                     final t = pe.targetForWeek(week);
@@ -750,20 +760,27 @@ class _TodayProgramCard extends StatelessWidget {
                             width: 4,
                             height: 4,
                             decoration: const BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle),
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(pe.exercise.name,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              pe.exercise.name,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                          Text(t.displayFull,
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: AppColors.textTertiary)),
+                          Text(
+                            t.displayFull,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -771,9 +788,12 @@ class _TodayProgramCard extends StatelessWidget {
                   if (day.exercises.length > 4)
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text('+${day.exercises.length - 4} more',
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: AppColors.textTertiary)),
+                      child: Text(
+                        '+${day.exercises.length - 4} more',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
                     ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -804,9 +824,8 @@ class _TodayProgramCard extends StatelessWidget {
 
 // ── Recent Workout Card ──
 class _RecentWorkoutCard extends StatelessWidget {
-  final WorkoutSession session;
-
   const _RecentWorkoutCard({required this.session});
+  final WorkoutSession session;
 
   @override
   Widget build(BuildContext context) {
@@ -832,10 +851,9 @@ class _RecentWorkoutCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         DateFormat('EEEE, MMM d').format(session.startTime),
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -843,7 +861,9 @@ class _RecentWorkoutCard extends StatelessWidget {
                 if (session.prCount > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.pr.withAlpha(20),
                       borderRadius: BorderRadius.circular(AppRadius.xs),
@@ -851,14 +871,15 @@ class _RecentWorkoutCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(LucideIcons.trophy,
-                            size: 12, color: AppColors.pr),
+                        const Icon(
+                          LucideIcons.trophy,
+                          size: 12,
+                          color: AppColors.pr,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${session.prCount} PR${session.prCount > 1 ? 's' : ''}',
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
+                          style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 color: AppColors.pr,
                                 fontWeight: FontWeight.w600,
@@ -896,10 +917,9 @@ class _RecentWorkoutCard extends StatelessWidget {
 }
 
 class _WorkoutStat extends StatelessWidget {
+  const _WorkoutStat({required this.icon, required this.value});
   final IconData icon;
   final String value;
-
-  const _WorkoutStat({required this.icon, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -910,10 +930,9 @@ class _WorkoutStat extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           value,
-          style: Theme.of(context)
-              .textTheme
-              .bodySmall
-              ?.copyWith(color: AppColors.textSecondary),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
         ),
       ],
     );

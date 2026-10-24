@@ -1,22 +1,23 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:strivo/core/services/hive_service.dart';
+import 'package:strivo/core/logging/app_logger.dart';
 import 'package:strivo/core/services/firestore_sync_service.dart';
+import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/utils/id_generator.dart';
+import 'package:strivo/features/programs/domain/entities/program.dart';
+import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/workout/domain/entities/exercise_set.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
-import 'package:strivo/features/programs/domain/entities/program.dart';
-import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
 
 // ── Default Rest Timer (user setting) ──
 final defaultRestSecondsProvider =
     StateNotifierProvider<DefaultRestNotifier, int>((ref) {
-  return DefaultRestNotifier();
-});
+      return DefaultRestNotifier();
+    });
 
 class DefaultRestNotifier extends StateNotifier<int> {
   DefaultRestNotifier() : super(_load());
@@ -25,7 +26,9 @@ class DefaultRestNotifier extends StateNotifier<int> {
       int.tryParse(HiveService.getSetting('default_rest_seconds') ?? '') ?? 90;
 
   void setSeconds(int seconds) {
-    HiveService.saveSetting('default_rest_seconds', seconds.toString());
+    unawaited(
+      HiveService.saveSetting('default_rest_seconds', seconds.toString()),
+    );
     state = seconds;
   }
 }
@@ -33,8 +36,8 @@ class DefaultRestNotifier extends StateNotifier<int> {
 // ── Workout Sessions Provider ──
 final workoutSessionsProvider =
     StateNotifierProvider<WorkoutSessionsNotifier, List<WorkoutSession>>((ref) {
-  return WorkoutSessionsNotifier();
-});
+      return WorkoutSessionsNotifier();
+    });
 
 class WorkoutSessionsNotifier extends StateNotifier<List<WorkoutSession>> {
   WorkoutSessionsNotifier() : super([]) {
@@ -53,7 +56,7 @@ class WorkoutSessionsNotifier extends StateNotifier<List<WorkoutSession>> {
   Future<void> deleteSession(String id) async {
     await HiveService.deleteSession(id);
     _loadSessions();
-    FirestoreSyncService.instance.deleteSession(id);
+    unawaited(FirestoreSyncService.instance.deleteSession(id));
   }
 
   void refresh() => _loadSessions();
@@ -63,12 +66,16 @@ class WorkoutSessionsNotifier extends StateNotifier<List<WorkoutSession>> {
   }
 
   WorkoutSession? getLastSessionForProgramDay(
-      String programId, String dayName) {
+    String programId,
+    String dayName,
+  ) {
     return HiveService.getAllSessions()
-        .where((s) =>
-            s.isCompleted &&
-            s.programId == programId &&
-            s.programDayName == dayName)
+        .where(
+          (s) =>
+              s.isCompleted &&
+              s.programId == programId &&
+              s.programDayName == dayName,
+        )
         .firstOrNull;
   }
 
@@ -80,13 +87,10 @@ class WorkoutSessionsNotifier extends StateNotifier<List<WorkoutSession>> {
 // ── Active Workout Provider ──
 final activeWorkoutProvider =
     StateNotifierProvider<ActiveWorkoutNotifier, WorkoutSession?>((ref) {
-  return ActiveWorkoutNotifier(ref);
-});
+      return ActiveWorkoutNotifier(ref);
+    });
 
 class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
-  final Ref _ref;
-  Timer? _autoSaveTimer;
-
   ActiveWorkoutNotifier(this._ref) : super(null) {
     // Restore active workout if app was killed
     final saved = HiveService.getActiveWorkout();
@@ -95,12 +99,14 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
       _startAutoSave();
     }
   }
+  final Ref _ref;
+  Timer? _autoSaveTimer;
 
   void _startAutoSave() {
     _autoSaveTimer?.cancel();
     _autoSaveTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (state != null) {
-        HiveService.saveActiveWorkout(state!);
+        unawaited(HiveService.saveActiveWorkout(state!));
       }
     });
   }
@@ -110,16 +116,15 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     final now = DateTime.now();
     final defaultRest = _ref.read(defaultRestSecondsProvider);
 
-    List<WorkoutExercise> exercises = [];
+    var exercises = <WorkoutExercise>[];
 
     if (routine != null) {
       // Pre-fill from routine template
-      final lastSession =
-          HiveService.getLastSessionByRoutine(routine.id);
+      final lastSession = HiveService.getLastSessionByRoutine(routine.id);
 
       exercises = routine.exercises.map((re) {
         // Try to get previous sets for this exercise
-        List<ExerciseSet> sets = [];
+        var sets = <ExerciseSet>[];
         if (lastSession != null) {
           final prevExercise = lastSession.exercises
               .where((e) => e.exercise.id == re.exercise.id)
@@ -129,8 +134,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
             sets = List.generate(
               re.targetSets,
               (i) => i < prevExercise.sets.length
-                  ? ExerciseSet.fromPrevious(
-                      prevExercise.sets[i], i + 1)
+                  ? ExerciseSet.fromPrevious(prevExercise.sets[i], i + 1)
                   : ExerciseSet.empty(i + 1),
             );
           }
@@ -163,7 +167,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     );
 
     _startAutoSave();
-    HiveService.saveActiveWorkout(state!);
+    unawaited(HiveService.saveActiveWorkout(state!));
   }
 
   /// Start the active program's current day. Prescribes this week's
@@ -210,7 +214,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     );
 
     _startAutoSave();
-    HiveService.saveActiveWorkout(state!);
+    unawaited(HiveService.saveActiveWorkout(state!));
   }
 
   /// Most recent working-set weight (kg) used for an exercise, for pre-fill.
@@ -220,8 +224,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
           .where((e) => e.exercise.id == exerciseId)
           .firstOrNull;
       if (we == null) continue;
-      final done =
-          we.sets.where((s) => s.isCompleted && !s.isWarmup).toList();
+      final done = we.sets.where((s) => s.isCompleted && !s.isWarmup).toList();
       final pool = done.isNotEmpty ? done : we.sets;
       if (pool.isNotEmpty) {
         return pool.map((s) => s.weight).reduce((a, b) => a > b ? a : b);
@@ -282,11 +285,13 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
       exercises: state!.exercises.map((we) {
         if (we.id != workoutExerciseId) return we;
         final sets = we.sets
-            .map((s) => s.copyWith(
-                  weight: lastWeight > 0 ? lastWeight : s.weight,
-                  isCompleted: false,
-                  isPR: false,
-                ))
+            .map(
+              (s) => s.copyWith(
+                weight: lastWeight > 0 ? lastWeight : s.weight,
+                isCompleted: false,
+                isPR: false,
+              ),
+            )
             .toList();
         return we.copyWith(exercise: newExercise, sets: sets);
       }).toList(),
@@ -413,7 +418,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
           updatedAt: DateTime.now(),
         );
         await HiveService.saveRoutine(updated);
-        FirestoreSyncService.instance.syncRoutine(updated);
+        unawaited(FirestoreSyncService.instance.syncRoutine(updated));
       }
     }
 
@@ -437,22 +442,24 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
   void _syncToCloud(WorkoutSession session) {
     try {
       final syncService = FirestoreSyncService.instance;
-      syncService.syncSession(session);
+      unawaited(syncService.syncSession(session));
 
       // Also sync exercise PRs
       for (final we in session.exercises) {
         final bestSet = we.bestSet;
         if (bestSet != null) {
-          syncService.updateExerciseHistory(
-            exerciseId: we.exercise.id,
-            maxWeight: we.maxWeight,
-            maxVolume: we.totalVolume,
-            lastPerformed: session.startTime,
+          unawaited(
+            syncService.updateExerciseHistory(
+              exerciseId: we.exercise.id,
+              maxWeight: we.maxWeight,
+              maxVolume: we.totalVolume,
+              lastPerformed: session.startTime,
+            ),
           );
         }
       }
-    } catch (e) {
-      debugPrint('⚠️ Cloud sync skipped: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning('Cloud sync skipped', error: e, stackTrace: stackTrace);
     }
   }
 
@@ -480,8 +487,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
         return we.copyWith(
           sets: we.sets.map((s) {
             if (!s.isCompleted || s.isWarmup) return s;
-            final isPR = s.weight > maxWeight ||
-                s.volume > maxVolume;
+            final isPR = s.weight > maxWeight || s.volume > maxVolume;
             return s.copyWith(isPR: isPR);
           }).toList(),
         );
@@ -493,20 +499,22 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
   void _updateExerciseHistory(WorkoutSession session) {
     for (final we in session.exercises) {
       final existing = HiveService.getExerciseHistory(we.exercise.id);
-      double maxWeight = (existing?['maxWeight'] as num?)?.toDouble() ?? 0;
-      double maxVolume = (existing?['maxVolume'] as num?)?.toDouble() ?? 0;
+      var maxWeight = (existing?['maxWeight'] as num?)?.toDouble() ?? 0;
+      var maxVolume = (existing?['maxVolume'] as num?)?.toDouble() ?? 0;
 
       for (final s in we.sets.where((s) => s.isCompleted && !s.isWarmup)) {
         if (s.weight > maxWeight) maxWeight = s.weight;
         if (s.volume > maxVolume) maxVolume = s.volume;
       }
 
-      HiveService.updateExerciseHistory(we.exercise.id, {
-        'maxWeight': maxWeight,
-        'maxVolume': maxVolume,
-        'lastPerformed': session.startTime.toIso8601String(),
-        'exerciseName': we.exercise.name,
-      });
+      unawaited(
+        HiveService.updateExerciseHistory(we.exercise.id, {
+          'maxWeight': maxWeight,
+          'maxVolume': maxVolume,
+          'lastPerformed': session.startTime.toIso8601String(),
+          'exerciseName': we.exercise.name,
+        }),
+      );
     }
   }
 
@@ -520,19 +528,18 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
 // ── Rest Timer Provider ──
 final restTimerProvider =
     StateNotifierProvider<RestTimerNotifier, RestTimerState>((ref) {
-  return RestTimerNotifier();
-});
+      return RestTimerNotifier();
+    });
 
 class RestTimerState {
-  final int totalSeconds;
-  final int remainingSeconds;
-  final bool isRunning;
-
   const RestTimerState({
     this.totalSeconds = 90,
     this.remainingSeconds = 0,
     this.isRunning = false,
   });
+  final int totalSeconds;
+  final int remainingSeconds;
+  final bool isRunning;
 
   RestTimerState copyWith({
     int? totalSeconds,
@@ -559,9 +566,8 @@ class RestTimerState {
 }
 
 class RestTimerNotifier extends StateNotifier<RestTimerState> {
-  Timer? _timer;
-
   RestTimerNotifier() : super(const RestTimerState());
+  Timer? _timer;
 
   void startTimer(int seconds) {
     _timer?.cancel();
@@ -612,8 +618,8 @@ final workoutDurationProvider = StreamProvider<Duration>((ref) {
 // ── Exercise Library Provider ──
 final exerciseLibraryProvider =
     StateNotifierProvider<ExerciseLibraryNotifier, List<Exercise>>((ref) {
-  return ExerciseLibraryNotifier();
-});
+      return ExerciseLibraryNotifier();
+    });
 
 class ExerciseLibraryNotifier extends StateNotifier<List<Exercise>> {
   ExerciseLibraryNotifier() : super([]) {
@@ -626,7 +632,7 @@ class ExerciseLibraryNotifier extends StateNotifier<List<Exercise>> {
     // Back up custom exercises to the cloud so they survive uninstall and reach
     // other devices (built-ins ship with the app and don't need syncing).
     if (exercise.isCustom) {
-      FirestoreSyncService.instance.syncExercise(exercise);
+      unawaited(FirestoreSyncService.instance.syncExercise(exercise));
     }
   }
 
@@ -634,17 +640,22 @@ class ExerciseLibraryNotifier extends StateNotifier<List<Exercise>> {
   /// exercise's alternatives). Unknown ids are skipped.
   List<Exercise> resolveByIds(List<String> ids) {
     final byId = {for (final e in state) e.id: e};
-    return [for (final id in ids) if (byId[id] != null) byId[id]!];
+    return [
+      for (final id in ids)
+        if (byId[id] != null) byId[id]!,
+    ];
   }
 
   List<Exercise> searchExercises(String query) {
     if (query.isEmpty) return state;
     final lower = query.toLowerCase();
     return state
-        .where((e) =>
-            e.name.toLowerCase().contains(lower) ||
-            e.primaryMuscle.displayName.toLowerCase().contains(lower) ||
-            e.equipment.displayName.toLowerCase().contains(lower))
+        .where(
+          (e) =>
+              e.name.toLowerCase().contains(lower) ||
+              e.primaryMuscle.displayName.toLowerCase().contains(lower) ||
+              e.equipment.displayName.toLowerCase().contains(lower),
+        )
         .toList();
   }
 

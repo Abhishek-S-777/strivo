@@ -44,7 +44,7 @@ void main() {
     });
 
     test('fromPrevious copies load but resets completion & PR', () {
-      final prev = _set(80, 8, completed: true, pr: true);
+      final prev = _set(80, 8, pr: true);
       final next = ExerciseSet.fromPrevious(prev, 2);
       expect(next.weight, 80);
       expect(next.reps, 8);

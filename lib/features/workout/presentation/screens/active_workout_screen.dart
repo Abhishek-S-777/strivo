@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,9 +18,8 @@ import 'package:strivo/features/workout/presentation/widgets/exercise_picker_she
 import 'package:strivo/features/workout/presentation/widgets/rest_timer_widget.dart';
 
 class ActiveWorkoutScreen extends ConsumerStatefulWidget {
-  final String? routineId;
-
   const ActiveWorkoutScreen({super.key, this.routineId});
+  final String? routineId;
 
   @override
   ConsumerState<ActiveWorkoutScreen> createState() =>
@@ -75,7 +76,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               _WorkoutTopBar(
                 workoutName: workout.name,
                 duration: duration.when(
-                  data: (d) => _formatDuration(d),
+                  data: _formatDuration,
                   loading: () => '00:00',
                   error: (e, st) => '00:00',
                 ),
@@ -93,7 +94,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
               // ── Exercise List ──
               Expanded(
                 child: workout.exercises.isEmpty
-                    ? _EmptyExerciseState(onAdd: () => _showExercisePicker())
+                    ? _EmptyExerciseState(onAdd: _showExercisePicker)
                     : ReorderableListView.builder(
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
                         itemCount: workout.exercises.length,
@@ -114,21 +115,26 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                           return _ExerciseCard(
                             key: ValueKey(exercise.id),
                             workoutExercise: exercise,
-                            previousExercise:
-                                _getPreviousExercise(workout, exercise),
+                            previousExercise: _getPreviousExercise(
+                              workout,
+                              exercise,
+                            ),
                             onSetCompleted: (setId) {
                               ref
                                   .read(activeWorkoutProvider.notifier)
                                   .toggleSetCompletion(exercise.id, setId);
-                              HapticFeedback.lightImpact();
+                              unawaited(HapticFeedback.lightImpact());
                               // Start rest timer on set completion
-                              final set = exercise.sets
-                                  .firstWhere((s) => s.id == setId);
+                              final set = exercise.sets.firstWhere(
+                                (s) => s.id == setId,
+                              );
                               if (!set.isCompleted) {
                                 ref
                                     .read(restTimerProvider.notifier)
-                                    .startTimer(exercise.restSeconds ??
-                                        ref.read(defaultRestSecondsProvider));
+                                    .startTimer(
+                                      exercise.restSeconds ??
+                                          ref.read(defaultRestSecondsProvider),
+                                    );
                               }
                             },
                             onSetUpdated: (setId, newSet) {
@@ -156,8 +162,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
                                   .read(activeWorkoutProvider.notifier)
                                   .updateExerciseNotes(exercise.id, notes);
                             },
-                            onWatchVideo: () =>
-                                _watchVideo(exercise.exercise),
+                            onWatchVideo: () => _watchVideo(exercise.exercise),
                             onSwap: () => _showAlternatives(exercise),
                           );
                         },
@@ -166,7 +171,7 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
               // ── Bottom Action Bar ──
               _BottomActionBar(
-                onAddExercise: () => _showExercisePicker(),
+                onAddExercise: _showExercisePicker,
                 completedSets: workout.totalCompletedSets,
                 totalVolume: workout.totalVolume,
               ),
@@ -178,12 +183,16 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   WorkoutExercise? _getPreviousExercise(
-      WorkoutSession workout, WorkoutExercise current) {
+    WorkoutSession workout,
+    WorkoutExercise current,
+  ) {
     final notifier = ref.read(workoutSessionsProvider.notifier);
     WorkoutSession? lastSession;
     if (workout.programId != null && workout.programDayName != null) {
       lastSession = notifier.getLastSessionForProgramDay(
-          workout.programId!, workout.programDayName!);
+        workout.programId!,
+        workout.programDayName!,
+      );
     } else if (workout.routineId != null) {
       lastSession = notifier.getLastSessionForRoutine(workout.routineId!);
     }
@@ -194,15 +203,17 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   void _showExercisePicker() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ExercisePickerSheet(
-        onExerciseSelected: (exercise) {
-          ref.read(activeWorkoutProvider.notifier).addExercise(exercise);
-          Navigator.pop(context);
-        },
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => ExercisePickerSheet(
+          onExerciseSelected: (exercise) {
+            ref.read(activeWorkoutProvider.notifier).addExercise(exercise);
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -213,7 +224,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
     final ok = await ExerciseVideo.open(exercise);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open a video for this exercise')),
+        const SnackBar(
+          content: Text('Could not open a video for this exercise'),
+        ),
       );
     }
   }
@@ -226,7 +239,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
         .resolveByIds(we.exercise.alternativeIds);
     if (alts.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No alternatives listed for this exercise')),
+        const SnackBar(
+          content: Text('No alternatives listed for this exercise'),
+        ),
       );
       return;
     }
@@ -279,8 +294,9 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
     if (confirmed != true || !context.mounted) return;
 
-    final session =
-        await ref.read(activeWorkoutProvider.notifier).finishWorkout();
+    final session = await ref
+        .read(activeWorkoutProvider.notifier)
+        .finishWorkout();
     if (session != null && context.mounted) {
       ref.read(workoutSessionsProvider.notifier).refresh();
       context.go('/workout/summary/${session.id}');
@@ -288,35 +304,37 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
   }
 
   void _showExitDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Leave Workout?'),
-        content: const Text(
-          'Your workout will be saved and you can continue later.',
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Leave Workout?'),
+          content: const Text(
+            'Your workout will be saved and you can continue later.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Stay'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                context.pop();
+              },
+              child: const Text('Leave (Auto-saved)'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await ref.read(activeWorkoutProvider.notifier).discardWorkout();
+                if (context.mounted) context.pop();
+              },
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Discard'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Stay'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              context.pop();
-            },
-            child: const Text('Leave (Auto-saved)'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(activeWorkoutProvider.notifier).discardWorkout();
-              if (context.mounted) context.pop();
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Discard'),
-          ),
-        ],
       ),
     );
   }
@@ -334,17 +352,16 @@ class _ActiveWorkoutScreenState extends ConsumerState<ActiveWorkoutScreen> {
 
 // ── Top Bar ──
 class _WorkoutTopBar extends StatelessWidget {
-  final String workoutName;
-  final String duration;
-  final VoidCallback onClose;
-  final VoidCallback onFinish;
-
   const _WorkoutTopBar({
     required this.workoutName,
     required this.duration,
     required this.onClose,
     required this.onFinish,
   });
+  final String workoutName;
+  final String duration;
+  final VoidCallback onClose;
+  final VoidCallback onFinish;
 
   @override
   Widget build(BuildContext context) {
@@ -377,10 +394,10 @@ class _WorkoutTopBar extends StatelessWidget {
                 Text(
                   duration,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                        fontFeatures: [const FontFeature.tabularFigures()],
-                      ),
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: [const FontFeature.tabularFigures()],
+                  ),
                 ),
               ],
             ),
@@ -403,21 +420,8 @@ class _WorkoutTopBar extends StatelessWidget {
 
 // ── Exercise Card (The Core Logging UI) ──
 class _ExerciseCard extends StatefulWidget {
-  final WorkoutExercise workoutExercise;
-  final WorkoutExercise? previousExercise;
-  final Function(String setId) onSetCompleted;
-  final Function(String setId, ExerciseSet newSet) onSetUpdated;
-  final VoidCallback onAddSet;
-  final Function(String setId) onRemoveSet;
-  final VoidCallback onRemoveExercise;
-  final Function(String notes) onNotesChanged;
-  final VoidCallback onWatchVideo;
-  final VoidCallback onSwap;
-
   const _ExerciseCard({
-    super.key,
     required this.workoutExercise,
-    this.previousExercise,
     required this.onSetCompleted,
     required this.onSetUpdated,
     required this.onAddSet,
@@ -426,7 +430,19 @@ class _ExerciseCard extends StatefulWidget {
     required this.onNotesChanged,
     required this.onWatchVideo,
     required this.onSwap,
+    super.key,
+    this.previousExercise,
   });
+  final WorkoutExercise workoutExercise;
+  final WorkoutExercise? previousExercise;
+  final void Function(String setId) onSetCompleted;
+  final void Function(String setId, ExerciseSet newSet) onSetUpdated;
+  final VoidCallback onAddSet;
+  final void Function(String setId) onRemoveSet;
+  final VoidCallback onRemoveExercise;
+  final void Function(String notes) onNotesChanged;
+  final VoidCallback onWatchVideo;
+  final VoidCallback onSwap;
 
   @override
   State<_ExerciseCard> createState() => _ExerciseCardState();
@@ -439,8 +455,9 @@ class _ExerciseCardState extends State<_ExerciseCard> {
   @override
   void initState() {
     super.initState();
-    _notesController =
-        TextEditingController(text: widget.workoutExercise.notes ?? '');
+    _notesController = TextEditingController(
+      text: widget.workoutExercise.notes ?? '',
+    );
   }
 
   @override
@@ -475,19 +492,18 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                     children: [
                       Text(
                         exercise.exercise.name,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${exercise.exercise.equipment.displayName} • ${exercise.exercise.primaryMuscle.displayName}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -497,9 +513,15 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                   tooltip: 'Watch video',
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                  icon: const Icon(LucideIcons.youtube,
-                      size: 18, color: AppColors.textSecondary),
+                  constraints: const BoxConstraints(
+                    minWidth: 36,
+                    minHeight: 36,
+                  ),
+                  icon: const Icon(
+                    LucideIcons.youtube,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
                   onPressed: widget.onWatchVideo,
                 ),
                 // Swap for an alternative (only when the exercise has any).
@@ -508,15 +530,23 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                     tooltip: 'Swap exercise',
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
-                    constraints:
-                        const BoxConstraints(minWidth: 36, minHeight: 36),
-                    icon: const Icon(LucideIcons.repeat,
-                        size: 17, color: AppColors.primary),
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                    icon: const Icon(
+                      LucideIcons.repeat,
+                      size: 17,
+                      color: AppColors.primary,
+                    ),
                     onPressed: widget.onSwap,
                   ),
                 PopupMenuButton<String>(
-                  icon: Icon(LucideIcons.moreVertical,
-                      size: 18, color: AppColors.textTertiary),
+                  icon: const Icon(
+                    LucideIcons.moreVertical,
+                    size: 18,
+                    color: AppColors.textTertiary,
+                  ),
                   onSelected: (value) {
                     if (value == 'video') {
                       widget.onWatchVideo();
@@ -544,8 +574,10 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                     ),
                     const PopupMenuItem(
                       value: 'remove',
-                      child: Text('Remove Exercise',
-                          style: TextStyle(color: AppColors.error)),
+                      child: Text(
+                        'Remove Exercise',
+                        style: TextStyle(color: AppColors.error),
+                      ),
                     ),
                   ],
                 ),
@@ -561,8 +593,10 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                 decoration: InputDecoration(
                   hintText: 'Add notes...',
                   isDense: true,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -581,22 +615,26 @@ class _ExerciseCardState extends State<_ExerciseCard> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 6),
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    Icon(LucideIcons.history,
-                        size: 13, color: AppColors.textTertiary),
+                    const Icon(
+                      LucideIcons.history,
+                      size: 13,
+                      color: AppColors.textTertiary,
+                    ),
                     const SizedBox(width: 6),
                     Text(
                       'Last: ${prev.sets.length} sets × ${Units.weightLabel(prev.maxWeight)}',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
@@ -610,17 +648,60 @@ class _ExerciseCardState extends State<_ExerciseCard> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                const SizedBox(width: 36, child: Text('SET', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
+                const SizedBox(
+                  width: 36,
+                  child: Text(
+                    'SET',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                const Expanded(child: Text('PREVIOUS', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
+                const Expanded(
+                  child: Text(
+                    'PREVIOUS',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                SizedBox(width: 72, child: Text(Units.label.toUpperCase(), textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
+                SizedBox(
+                  width: 72,
+                  child: Text(
+                    Units.label.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                const SizedBox(width: 56, child: Text('REPS', textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 10, color: AppColors.textTertiary, fontWeight: FontWeight.w600, letterSpacing: 0.5))),
+                const SizedBox(
+                  width: 56,
+                  child: Text(
+                    'REPS',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 8),
                 const SizedBox(width: 36),
               ],
@@ -638,8 +719,8 @@ class _ExerciseCardState extends State<_ExerciseCard> {
               set: set,
               previousSet: prevSet,
               onToggleComplete: () => widget.onSetCompleted(set.id),
-              onWeightChanged: (w) => widget.onSetUpdated(
-                  set.id, set.copyWith(weight: w)),
+              onWeightChanged: (w) =>
+                  widget.onSetUpdated(set.id, set.copyWith(weight: w)),
               onRepsChanged: (r) =>
                   widget.onSetUpdated(set.id, set.copyWith(reps: r)),
               onRemove: () => widget.onRemoveSet(set.id),
@@ -659,21 +740,22 @@ class _ExerciseCardState extends State<_ExerciseCard> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: AppColors.border,
-                    style: BorderStyle.solid,
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(LucideIcons.plus,
-                        size: 14, color: AppColors.textSecondary),
+                    const Icon(
+                      LucideIcons.plus,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Add Set',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelMedium
-                          ?.copyWith(color: AppColors.textSecondary),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
@@ -688,21 +770,20 @@ class _ExerciseCardState extends State<_ExerciseCard> {
 
 // ── Individual Set Row (Speed-optimized input) ──
 class _SetRow extends StatelessWidget {
-  final ExerciseSet set;
-  final ExerciseSet? previousSet;
-  final VoidCallback onToggleComplete;
-  final Function(double) onWeightChanged;
-  final Function(int) onRepsChanged;
-  final VoidCallback onRemove;
-
   const _SetRow({
     required this.set,
-    this.previousSet,
     required this.onToggleComplete,
     required this.onWeightChanged,
     required this.onRepsChanged,
     required this.onRemove,
+    this.previousSet,
   });
+  final ExerciseSet set;
+  final ExerciseSet? previousSet;
+  final VoidCallback onToggleComplete;
+  final void Function(double) onWeightChanged;
+  final void Function(int) onRepsChanged;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -714,8 +795,7 @@ class _SetRow extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         color: AppColors.error.withAlpha(30),
-        child: const Icon(LucideIcons.trash2,
-            color: AppColors.error, size: 18),
+        child: const Icon(LucideIcons.trash2, color: AppColors.error, size: 18),
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -735,14 +815,17 @@ class _SetRow extends StatelessWidget {
                     color: set.isPR
                         ? AppColors.pr.withAlpha(30)
                         : set.isWarmup
-                            ? AppColors.warning.withAlpha(20)
-                            : AppColors.surfaceLight,
+                        ? AppColors.warning.withAlpha(20)
+                        : AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Center(
                     child: set.isPR
-                        ? const Icon(LucideIcons.trophy,
-                            size: 12, color: AppColors.pr)
+                        ? const Icon(
+                            LucideIcons.trophy,
+                            size: 12,
+                            color: AppColors.pr,
+                          )
                         : Text(
                             '${set.setNumber}',
                             style: TextStyle(
@@ -767,8 +850,8 @@ class _SetRow extends StatelessWidget {
                       ? '${Units.weight(previousSet!.weight)} × ${previousSet!.reps}'
                       : '—',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
             ),
@@ -780,7 +863,8 @@ class _SetRow extends StatelessWidget {
               width: 72,
               onIncrement: () => onWeightChanged(set.weight + Units.stepKg),
               onDecrement: () => onWeightChanged(
-                  (set.weight - Units.stepKg).clamp(0, double.infinity)),
+                (set.weight - Units.stepKg).clamp(0, double.infinity),
+              ),
               onDirectInput: (v) => onWeightChanged(Units.toKg(v)),
               isDecimal: true,
               unitLabel: Units.label,
@@ -795,10 +879,8 @@ class _SetRow extends StatelessWidget {
               value: set.reps.toDouble(),
               width: 56,
               onIncrement: () => onRepsChanged(set.reps + 1),
-              onDecrement: () =>
-                  onRepsChanged((set.reps - 1).clamp(0, 999)),
+              onDecrement: () => onRepsChanged((set.reps - 1).clamp(0, 999)),
               onDirectInput: (v) => onRepsChanged(v.toInt()),
-              isDecimal: false,
             ),
             const SizedBox(width: 8),
 
@@ -837,15 +919,6 @@ class _SetRow extends StatelessWidget {
 
 // ── Inline Number Input (weight/reps - fast tap input) ──
 class _InlineNumberInput extends StatelessWidget {
-  final double value;
-  final double width;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
-  final Function(double) onDirectInput;
-  final bool isDecimal;
-  final double? comparison;
-  final String? unitLabel;
-
   const _InlineNumberInput({
     required this.value,
     required this.width,
@@ -856,6 +929,14 @@ class _InlineNumberInput extends StatelessWidget {
     this.comparison,
     this.unitLabel,
   });
+  final double value;
+  final double width;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+  final void Function(double) onDirectInput;
+  final bool isDecimal;
+  final double? comparison;
+  final String? unitLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -880,8 +961,11 @@ class _InlineNumberInput extends StatelessWidget {
                 width: 14,
                 height: 36,
                 child: Center(
-                  child: Icon(LucideIcons.minus,
-                      size: 10, color: AppColors.textTertiary),
+                  child: Icon(
+                    LucideIcons.minus,
+                    size: 10,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
             ),
@@ -894,8 +978,8 @@ class _InlineNumberInput extends StatelessWidget {
                     Text(
                       isDecimal
                           ? (value % 1 == 0
-                              ? value.toInt().toString()
-                              : value.toStringAsFixed(1))
+                                ? value.toInt().toString()
+                                : value.toStringAsFixed(1))
                           : value.toInt().toString(),
                       style: const TextStyle(
                         fontSize: 14,
@@ -926,8 +1010,11 @@ class _InlineNumberInput extends StatelessWidget {
                 width: 14,
                 height: 36,
                 child: Center(
-                  child: Icon(LucideIcons.plus,
-                      size: 10, color: AppColors.textTertiary),
+                  child: Icon(
+                    LucideIcons.plus,
+                    size: 10,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
             ),
@@ -944,45 +1031,47 @@ class _InlineNumberInput extends StatelessWidget {
           : value.toInt().toString(),
     );
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isDecimal
-            ? 'Enter Weight (${unitLabel ?? 'kg'})'
-            : 'Enter Reps'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
-          autofocus: true,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(
+            isDecimal ? 'Enter Weight (${unitLabel ?? 'kg'})' : 'Enter Reps',
           ),
-          onSubmitted: (v) {
-            final parsed = double.tryParse(v);
-            if (parsed != null) {
-              onDirectInput(parsed);
-            }
-            Navigator.pop(ctx);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final parsed = double.tryParse(controller.text);
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
+            autofocus: true,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+            ),
+            onSubmitted: (v) {
+              final parsed = double.tryParse(v);
               if (parsed != null) {
                 onDirectInput(parsed);
               }
               Navigator.pop(ctx);
             },
-            child: const Text('Done'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final parsed = double.tryParse(controller.text);
+                if (parsed != null) {
+                  onDirectInput(parsed);
+                }
+                Navigator.pop(ctx);
+              },
+              child: const Text('Done'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -990,9 +1079,8 @@ class _InlineNumberInput extends StatelessWidget {
 
 // ── Empty State ──
 class _EmptyExerciseState extends StatelessWidget {
-  final VoidCallback onAdd;
-
   const _EmptyExerciseState({required this.onAdd});
+  final VoidCallback onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -1000,23 +1088,24 @@ class _EmptyExerciseState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(LucideIcons.dumbbell,
-              size: 56, color: AppColors.textTertiary),
+          const Icon(
+            LucideIcons.dumbbell,
+            size: 56,
+            color: AppColors.textTertiary,
+          ),
           const SizedBox(height: 16),
           Text(
             'No exercises added',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
             'Add an exercise to start logging',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppColors.textTertiary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
@@ -1032,15 +1121,14 @@ class _EmptyExerciseState extends StatelessWidget {
 
 // ── Bottom Action Bar ──
 class _BottomActionBar extends StatelessWidget {
-  final VoidCallback onAddExercise;
-  final int completedSets;
-  final double totalVolume;
-
   const _BottomActionBar({
     required this.onAddExercise,
     required this.completedSets,
     required this.totalVolume,
   });
+  final VoidCallback onAddExercise;
+  final int completedSets;
+  final double totalVolume;
 
   @override
   Widget build(BuildContext context) {
@@ -1078,8 +1166,10 @@ class _BottomActionBar extends StatelessWidget {
               icon: const Icon(LucideIcons.plus, size: 18),
               label: const Text('Add Exercise'),
               style: ElevatedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
               ),
             ),
           ],
@@ -1090,10 +1180,9 @@ class _BottomActionBar extends StatelessWidget {
 }
 
 class _MiniStat extends StatelessWidget {
+  const _MiniStat({required this.label, required this.value});
   final String label;
   final String value;
-
-  const _MiniStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1101,16 +1190,18 @@ class _MiniStat extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(value,
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        Text(label,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: AppColors.textTertiary)),
+        Text(
+          value,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
+        ),
       ],
     );
   }

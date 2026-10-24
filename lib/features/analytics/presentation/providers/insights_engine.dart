@@ -36,6 +36,17 @@ enum TrendStatus {
 
 @immutable
 class TrainingInsight {
+  const TrainingInsight({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.description,
+    required this.priority,
+    required this.icon,
+    required this.color,
+    required this.timestamp,
+    this.exerciseId,
+  });
   final String id;
   final InsightType type;
   final String title;
@@ -45,33 +56,10 @@ class TrainingInsight {
   final Color color;
   final String? exerciseId;
   final DateTime timestamp;
-
-  const TrainingInsight({
-    required this.id,
-    required this.type,
-    required this.title,
-    required this.description,
-    required this.priority,
-    required this.icon,
-    required this.color,
-    this.exerciseId,
-    required this.timestamp,
-  });
 }
 
 @immutable
 class ExerciseTrend {
-  final String exerciseId;
-  final String exerciseName;
-  final TrendStatus status;
-  final double currentWeight;
-  final double weightChange;
-  final double weightChangePercent;
-  final double estimated1RM;
-  final TrendStatus volumeTrend;
-  final DateTime lastPerformed;
-  final int sessionCount;
-
   const ExerciseTrend({
     required this.exerciseId,
     required this.exerciseName,
@@ -84,19 +72,20 @@ class ExerciseTrend {
     required this.lastPerformed,
     required this.sessionCount,
   });
+  final String exerciseId;
+  final String exerciseName;
+  final TrendStatus status;
+  final double currentWeight;
+  final double weightChange;
+  final double weightChangePercent;
+  final double estimated1RM;
+  final TrendStatus volumeTrend;
+  final DateTime lastPerformed;
+  final int sessionCount;
 }
 
 @immutable
 class WeeklyLoadSummary {
-  final DateTime weekStart;
-  final double totalVolume;
-  final int totalSets;
-  final int totalReps;
-  final int workoutCount;
-  final Duration avgSessionDuration;
-  final Map<MuscleGroup, double> muscleGroupDistribution;
-  final String topExerciseByVolume;
-
   const WeeklyLoadSummary({
     required this.weekStart,
     required this.totalVolume,
@@ -107,19 +96,26 @@ class WeeklyLoadSummary {
     required this.muscleGroupDistribution,
     required this.topExerciseByVolume,
   });
+  final DateTime weekStart;
+  final double totalVolume;
+  final int totalSets;
+  final int totalReps;
+  final int workoutCount;
+  final Duration avgSessionDuration;
+  final Map<MuscleGroup, double> muscleGroupDistribution;
+  final String topExerciseByVolume;
 }
 
 @immutable
 class TrainingStreak {
-  final int currentStreak;
-  final int longestStreak;
-  final bool isActive;
-
   const TrainingStreak({
     required this.currentStreak,
     required this.longestStreak,
     required this.isActive,
   });
+  final int currentStreak;
+  final int longestStreak;
+  final bool isActive;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -143,11 +139,13 @@ final trainingStreakProvider = Provider<TrainingStreak>((ref) {
 });
 
 TrainingStreak _calculateStreak(List<WorkoutSession> sessions) {
-  final completed =
-      sessions.where((s) => s.isCompleted).toList();
+  final completed = sessions.where((s) => s.isCompleted).toList();
   if (completed.isEmpty) {
     return const TrainingStreak(
-        currentStreak: 0, longestStreak: 0, isActive: false);
+      currentStreak: 0,
+      longestStreak: 0,
+      isActive: false,
+    );
   }
 
   // Collect unique ISO weeks that have at least one workout
@@ -160,12 +158,13 @@ TrainingStreak _calculateStreak(List<WorkoutSession> sessions) {
     ..sort((a, b) => b.compareTo(a)); // newest first
 
   final currentWeek = _weekStart(DateTime.now());
-  final bool isActive = sortedWeeks.first == currentWeek ||
+  final isActive =
+      sortedWeeks.first == currentWeek ||
       sortedWeeks.first == currentWeek.subtract(const Duration(days: 7));
 
   // Count current consecutive streak walking backwards
-  int currentStreak = 0;
-  DateTime expected = isActive ? sortedWeeks.first : currentWeek;
+  var currentStreak = 0;
+  var expected = isActive ? sortedWeeks.first : currentWeek;
   for (final week in sortedWeeks) {
     if (week == expected) {
       currentStreak++;
@@ -176,9 +175,9 @@ TrainingStreak _calculateStreak(List<WorkoutSession> sessions) {
   }
 
   // Count longest streak
-  int longestStreak = 0;
-  int streak = 1;
-  for (int i = 1; i < sortedWeeks.length; i++) {
+  var longestStreak = 0;
+  var streak = 1;
+  for (var i = 1; i < sortedWeeks.length; i++) {
     final diff = sortedWeeks[i - 1].difference(sortedWeeks[i]).inDays;
     if (diff == 7) {
       streak++;
@@ -204,13 +203,14 @@ final muscleGroupVolumeProvider = Provider<Map<MuscleGroup, double>>((ref) {
 });
 
 Map<MuscleGroup, double> _calculateMuscleGroupVolume(
-    List<WorkoutSession> sessions) {
+  List<WorkoutSession> sessions,
+) {
   final now = DateTime.now();
   final weekStartDate = _weekStart(now);
 
-  final thisWeek = sessions.where((s) =>
-      s.isCompleted &&
-      !s.startTime.isBefore(weekStartDate));
+  final thisWeek = sessions.where(
+    (s) => s.isCompleted && !s.startTime.isBefore(weekStartDate),
+  );
 
   final volumes = <MuscleGroup, double>{};
   for (final session in thisWeek) {
@@ -230,14 +230,14 @@ final weeklyLoadHistoryProvider = Provider<List<WeeklyLoadSummary>>((ref) {
 });
 
 List<WeeklyLoadSummary> _calculateWeeklyLoadHistory(
-    List<WorkoutSession> sessions) {
+  List<WorkoutSession> sessions,
+) {
   final completed = sessions.where((s) => s.isCompleted).toList();
   if (completed.isEmpty) return [];
 
   final now = DateTime.now();
   final currentWeekStart = _weekStart(now);
-  final eightWeeksAgo =
-      currentWeekStart.subtract(const Duration(days: 7 * 7));
+  final eightWeeksAgo = currentWeekStart.subtract(const Duration(days: 7 * 7));
 
   final relevant = completed
       .where((s) => !s.startTime.isBefore(eightWeeksAgo))
@@ -251,28 +251,30 @@ List<WeeklyLoadSummary> _calculateWeeklyLoadHistory(
   }
 
   final summaries = <WeeklyLoadSummary>[];
-  for (int i = 0; i < 8; i++) {
+  for (var i = 0; i < 8; i++) {
     final ws = currentWeekStart.subtract(Duration(days: 7 * i));
     final weekSessions = grouped[ws] ?? [];
 
     if (weekSessions.isEmpty) {
-      summaries.add(WeeklyLoadSummary(
-        weekStart: ws,
-        totalVolume: 0,
-        totalSets: 0,
-        totalReps: 0,
-        workoutCount: 0,
-        avgSessionDuration: Duration.zero,
-        muscleGroupDistribution: const {},
-        topExerciseByVolume: '',
-      ));
+      summaries.add(
+        WeeklyLoadSummary(
+          weekStart: ws,
+          totalVolume: 0,
+          totalSets: 0,
+          totalReps: 0,
+          workoutCount: 0,
+          avgSessionDuration: Duration.zero,
+          muscleGroupDistribution: const {},
+          topExerciseByVolume: '',
+        ),
+      );
       continue;
     }
 
     double totalVolume = 0;
-    int totalSets = 0;
-    int totalReps = 0;
-    Duration totalDuration = Duration.zero;
+    var totalSets = 0;
+    var totalReps = 0;
+    var totalDuration = Duration.zero;
     final muscleVolume = <MuscleGroup, double>{};
     final exerciseVolumes = <String, double>{};
 
@@ -302,7 +304,7 @@ List<WeeklyLoadSummary> _calculateWeeklyLoadHistory(
     }
 
     // Top exercise by volume
-    String topExercise = '';
+    var topExercise = '';
     double topVol = 0;
     for (final entry in exerciseVolumes.entries) {
       if (entry.value > topVol) {
@@ -311,19 +313,20 @@ List<WeeklyLoadSummary> _calculateWeeklyLoadHistory(
       }
     }
 
-    summaries.add(WeeklyLoadSummary(
-      weekStart: ws,
-      totalVolume: totalVolume,
-      totalSets: totalSets,
-      totalReps: totalReps,
-      workoutCount: weekSessions.length,
-      avgSessionDuration: weekSessions.isNotEmpty
-          ? Duration(
-              seconds: totalDuration.inSeconds ~/ weekSessions.length)
-          : Duration.zero,
-      muscleGroupDistribution: distribution,
-      topExerciseByVolume: topExercise,
-    ));
+    summaries.add(
+      WeeklyLoadSummary(
+        weekStart: ws,
+        totalVolume: totalVolume,
+        totalSets: totalSets,
+        totalReps: totalReps,
+        workoutCount: weekSessions.length,
+        avgSessionDuration: weekSessions.isNotEmpty
+            ? Duration(seconds: totalDuration.inSeconds ~/ weekSessions.length)
+            : Duration.zero,
+        muscleGroupDistribution: distribution,
+        topExerciseByVolume: topExercise,
+      ),
+    );
   }
 
   // Oldest first
@@ -351,17 +354,29 @@ List<ExerciseTrend> _calculateExerciseTrends(List<WorkoutSession> sessions) {
   // Collect per-exercise data
   // exerciseId → list of (date, maxWeight, totalVolume)
   final exerciseData =
-      <String, List<({DateTime date, double maxWeight, double volume, int reps, String name})>>{};
+      <
+        String,
+        List<
+          ({
+            DateTime date,
+            double maxWeight,
+            double volume,
+            int reps,
+            String name,
+          })
+        >
+      >{};
 
   for (final session in completed) {
     for (final we in session.exercises) {
-      final completedSets =
-          we.sets.where((s) => s.isCompleted && !s.isWarmup).toList();
+      final completedSets = we.sets
+          .where((s) => s.isCompleted && !s.isWarmup)
+          .toList();
       if (completedSets.isEmpty) continue;
 
       double maxW = 0;
       double vol = 0;
-      int bestReps = 0;
+      var bestReps = 0;
       double bestWeight = 0;
       for (final s in completedSets) {
         if (s.weight > maxW) maxW = s.weight;
@@ -395,12 +410,12 @@ List<ExerciseTrend> _calculateExerciseTrends(List<WorkoutSession> sessions) {
     final sessionCount = data.length;
 
     // Recent = last 4 weeks, previous = 4-8 weeks ago
-    final recent =
-        data.where((d) => !d.date.isBefore(fourWeeksAgo)).toList();
+    final recent = data.where((d) => !d.date.isBefore(fourWeeksAgo)).toList();
     final previous = data
-        .where((d) =>
-            d.date.isBefore(fourWeeksAgo) &&
-            !d.date.isBefore(eightWeeksAgo))
+        .where(
+          (d) =>
+              d.date.isBefore(fourWeeksAgo) && !d.date.isBefore(eightWeeksAgo),
+        )
         .toList();
 
     // Current weight = latest max weight
@@ -410,8 +425,8 @@ List<ExerciseTrend> _calculateExerciseTrends(List<WorkoutSession> sessions) {
     double previousWeight = 0;
     if (previous.isNotEmpty) {
       previousWeight =
-          previous.fold(0.0, (sum, d) => sum + d.maxWeight) /
-              previous.length;
+          previous.fold<double>(0, (sum, d) => sum + d.maxWeight) /
+          previous.length;
     } else if (data.length > 1) {
       previousWeight = data.first.maxWeight;
     } else {
@@ -419,8 +434,9 @@ List<ExerciseTrend> _calculateExerciseTrends(List<WorkoutSession> sessions) {
     }
 
     final weightChange = currentWeight - previousWeight;
-    final weightChangePercent =
-        previousWeight > 0 ? (weightChange / previousWeight) * 100 : 0.0;
+    final weightChangePercent = previousWeight > 0
+        ? (weightChange / previousWeight) * 100
+        : 0.0;
 
     // Strength trend
     TrendStatus status;
@@ -437,11 +453,12 @@ List<ExerciseTrend> _calculateExerciseTrends(List<WorkoutSession> sessions) {
     double prevVolAvg = 0;
     if (recent.isNotEmpty) {
       recentVolAvg =
-          recent.fold(0.0, (sum, d) => sum + d.volume) / recent.length;
+          recent.fold<double>(0, (sum, d) => sum + d.volume) / recent.length;
     }
     if (previous.isNotEmpty) {
       prevVolAvg =
-          previous.fold(0.0, (sum, d) => sum + d.volume) / previous.length;
+          previous.fold<double>(0, (sum, d) => sum + d.volume) /
+          previous.length;
     }
     TrendStatus volumeTrend;
     if (previous.isEmpty) {
@@ -457,21 +474,24 @@ List<ExerciseTrend> _calculateExerciseTrends(List<WorkoutSession> sessions) {
     // Estimated 1RM via Epley formula: weight × (1 + reps / 30)
     final bestReps = latest.reps;
     final bestWeight = latest.maxWeight;
-    final estimated1RM =
-        bestReps > 0 ? bestWeight * (1 + bestReps / 30) : bestWeight;
+    final estimated1RM = bestReps > 0
+        ? bestWeight * (1 + bestReps / 30)
+        : bestWeight;
 
-    trends.add(ExerciseTrend(
-      exerciseId: entry.key,
-      exerciseName: latest.name,
-      status: status,
-      currentWeight: currentWeight,
-      weightChange: weightChange,
-      weightChangePercent: weightChangePercent,
-      estimated1RM: estimated1RM,
-      volumeTrend: volumeTrend,
-      lastPerformed: lastPerformed,
-      sessionCount: sessionCount,
-    ));
+    trends.add(
+      ExerciseTrend(
+        exerciseId: entry.key,
+        exerciseName: latest.name,
+        status: status,
+        currentWeight: currentWeight,
+        weightChange: weightChange,
+        weightChangePercent: weightChangePercent,
+        estimated1RM: estimated1RM,
+        volumeTrend: volumeTrend,
+        lastPerformed: lastPerformed,
+        sessionCount: sessionCount,
+      ),
+    );
   }
 
   // Sort by most recently performed first
@@ -512,20 +532,21 @@ List<TrainingInsight> _generateInsights(
     for (final we in session.exercises) {
       final prSets = we.sets.where((s) => s.isPR && s.isCompleted);
       if (prSets.isNotEmpty) {
-        final bestPR = prSets.reduce(
-            (a, b) => a.weight > b.weight ? a : b);
-        insights.add(TrainingInsight(
-          id: 'pr_${we.exercise.id}_${session.id}',
-          type: InsightType.prAchieved,
-          title: '🏆 New PR on ${we.exercise.name}!',
-          description:
-              'You hit ${Units.weightLabel(bestPR.weight)} × ${bestPR.reps} reps — a new personal record. Keep pushing!',
-          priority: 5,
-          icon: LucideIcons.trophy,
-          color: AppColors.pr,
-          exerciseId: we.exercise.id,
-          timestamp: session.startTime,
-        ));
+        final bestPR = prSets.reduce((a, b) => a.weight > b.weight ? a : b);
+        insights.add(
+          TrainingInsight(
+            id: 'pr_${we.exercise.id}_${session.id}',
+            type: InsightType.prAchieved,
+            title: '🏆 New PR on ${we.exercise.name}!',
+            description:
+                'You hit ${Units.weightLabel(bestPR.weight)} × ${bestPR.reps} reps — a new personal record. Keep pushing!',
+            priority: 5,
+            icon: LucideIcons.trophy,
+            color: AppColors.pr,
+            exerciseId: we.exercise.id,
+            timestamp: session.startTime,
+          ),
+        );
       }
     }
   }
@@ -536,58 +557,65 @@ List<TrainingInsight> _generateInsights(
 
     switch (trend.status) {
       case TrendStatus.progressing:
-        insights.add(TrainingInsight(
-          id: 'strength_up_${trend.exerciseId}',
-          type: InsightType.strengthIncreasing,
-          title: '📈 ${trend.exerciseName} is climbing',
-          description:
-              'Up ${Units.weight(trend.weightChange)} ${Units.label} (${trend.weightChangePercent.toStringAsFixed(0)}%) over 4 weeks. Your programming is working.',
-          priority: 3,
-          icon: LucideIcons.trendingUp,
-          color: AppColors.success,
-          exerciseId: trend.exerciseId,
-          timestamp: trend.lastPerformed,
-        ));
-        break;
+        insights.add(
+          TrainingInsight(
+            id: 'strength_up_${trend.exerciseId}',
+            type: InsightType.strengthIncreasing,
+            title: '📈 ${trend.exerciseName} is climbing',
+            description:
+                'Up ${Units.weight(trend.weightChange)} ${Units.label} (${trend.weightChangePercent.toStringAsFixed(0)}%) over 4 weeks. Your programming is working.',
+            priority: 3,
+            icon: LucideIcons.trendingUp,
+            color: AppColors.success,
+            exerciseId: trend.exerciseId,
+            timestamp: trend.lastPerformed,
+          ),
+        );
       case TrendStatus.stagnant:
-        insights.add(TrainingInsight(
-          id: 'strength_flat_${trend.exerciseId}',
-          type: InsightType.strengthStagnant,
-          title: '⏸ ${trend.exerciseName} has plateaued',
-          description:
-              'Weight has been flat for 4+ weeks. Try varying rep ranges or adding intensity techniques.',
-          priority: 2,
-          icon: LucideIcons.minus,
-          color: AppColors.stagnant,
-          exerciseId: trend.exerciseId,
-          timestamp: trend.lastPerformed,
-        ));
-        break;
+        insights.add(
+          TrainingInsight(
+            id: 'strength_flat_${trend.exerciseId}',
+            type: InsightType.strengthStagnant,
+            title: '⏸ ${trend.exerciseName} has plateaued',
+            description:
+                'Weight has been flat for 4+ weeks. Try varying rep ranges or adding intensity techniques.',
+            priority: 2,
+            icon: LucideIcons.minus,
+            color: AppColors.stagnant,
+            exerciseId: trend.exerciseId,
+            timestamp: trend.lastPerformed,
+          ),
+        );
       case TrendStatus.regressing:
-        insights.add(TrainingInsight(
-          id: 'strength_down_${trend.exerciseId}',
-          type: InsightType.strengthDecreasing,
-          title: '📉 ${trend.exerciseName} is dropping',
-          description:
-              'Down ${Units.weight(trend.weightChange.abs())} ${Units.label} over 4 weeks. Check recovery, sleep, and nutrition.',
-          priority: 4,
-          icon: LucideIcons.trendingDown,
-          color: AppColors.error,
-          exerciseId: trend.exerciseId,
-          timestamp: trend.lastPerformed,
-        ));
-        break;
+        insights.add(
+          TrainingInsight(
+            id: 'strength_down_${trend.exerciseId}',
+            type: InsightType.strengthDecreasing,
+            title: '📉 ${trend.exerciseName} is dropping',
+            description:
+                'Down ${Units.weight(trend.weightChange.abs())} ${Units.label} over 4 weeks. Check recovery, sleep, and nutrition.',
+            priority: 4,
+            icon: LucideIcons.trendingDown,
+            color: AppColors.error,
+            exerciseId: trend.exerciseId,
+            timestamp: trend.lastPerformed,
+          ),
+        );
     }
   }
 
   // ── 3. Volume Milestones ───────────────────────────────────────────────
   // Milestones are evaluated in the user's display unit (same round numbers
   // in kg or lbs), so a lbs user celebrates "100,000 lbs", not an odd figure.
-  final totalLifetimeVolume =
-      completed.fold(0.0, (sum, s) => sum + s.totalVolume);
+  final totalLifetimeVolume = completed.fold<double>(
+    0,
+    (sum, s) => sum + s.totalVolume,
+  );
   final displayTotal = Units.fromKg(totalLifetimeVolume);
-  final displayWithoutLast = Units.fromKg(totalLifetimeVolume -
-      (completed.isNotEmpty ? completed.first.totalVolume : 0));
+  final displayWithoutLast = Units.fromKg(
+    totalLifetimeVolume -
+        (completed.isNotEmpty ? completed.first.totalVolume : 0),
+  );
 
   const milestones = [
     (threshold: 1000000.0, label: '1,000,000'),
@@ -603,17 +631,19 @@ List<TrainingInsight> _generateInsights(
     if (displayTotal >= m.threshold) {
       // Only fire when this session is what crossed the threshold.
       if (displayWithoutLast < m.threshold) {
-        insights.add(TrainingInsight(
-          id: 'volume_milestone_${m.threshold.toInt()}',
-          type: InsightType.volumeMilestone,
-          title: '🎯 ${m.label} ${Units.label} Total Volume!',
-          description:
-              'You\'ve lifted a lifetime total of ${m.label} ${Units.label}. That\'s serious dedication.',
-          priority: 4,
-          icon: LucideIcons.award,
-          color: AppColors.primary,
-          timestamp: completed.first.startTime,
-        ));
+        insights.add(
+          TrainingInsight(
+            id: 'volume_milestone_${m.threshold.toInt()}',
+            type: InsightType.volumeMilestone,
+            title: '🎯 ${m.label} ${Units.label} Total Volume!',
+            description:
+                "You've lifted a lifetime total of ${m.label} ${Units.label}. That's serious dedication.",
+            priority: 4,
+            icon: LucideIcons.award,
+            color: AppColors.primary,
+            timestamp: completed.first.startTime,
+          ),
+        );
       }
       break; // Only show the highest recently-crossed milestone
     }
@@ -621,8 +651,8 @@ List<TrainingInsight> _generateInsights(
 
   // ── 4. Consistency Streak ──────────────────────────────────────────────
   if (streak.currentStreak >= 2) {
-    int priority = 2;
-    String emoji = '🔥';
+    var priority = 2;
+    var emoji = '🔥';
     if (streak.currentStreak >= 8) {
       priority = 4;
       emoji = '⚡';
@@ -630,28 +660,32 @@ List<TrainingInsight> _generateInsights(
       priority = 3;
     }
 
-    insights.add(TrainingInsight(
-      id: 'streak_${streak.currentStreak}',
-      type: InsightType.consistencyStreak,
-      title: '$emoji ${streak.currentStreak}-week streak!',
-      description: streak.currentStreak == streak.longestStreak
-          ? 'This is your longest streak ever. Don\'t break the chain!'
-          : 'Your record is ${streak.longestStreak} weeks. Keep going!',
-      priority: priority,
-      icon: LucideIcons.flame,
-      color: AppColors.warning,
-      timestamp: now,
-    ));
+    insights.add(
+      TrainingInsight(
+        id: 'streak_${streak.currentStreak}',
+        type: InsightType.consistencyStreak,
+        title: '$emoji ${streak.currentStreak}-week streak!',
+        description: streak.currentStreak == streak.longestStreak
+            ? "This is your longest streak ever. Don't break the chain!"
+            : 'Your record is ${streak.longestStreak} weeks. Keep going!',
+        priority: priority,
+        icon: LucideIcons.flame,
+        color: AppColors.warning,
+        timestamp: now,
+      ),
+    );
   }
 
   // ── 5. Muscle Imbalance ────────────────────────────────────────────────
   if (muscleVolume.length >= 2) {
     final trainedGroups = muscleVolume.entries
-        .where((e) =>
-            e.key != MuscleGroup.fullBody &&
-            e.key != MuscleGroup.cardio &&
-            e.key != MuscleGroup.other &&
-            e.value > 0)
+        .where(
+          (e) =>
+              e.key != MuscleGroup.fullBody &&
+              e.key != MuscleGroup.cardio &&
+              e.key != MuscleGroup.other &&
+              e.value > 0,
+        )
         .toList();
 
     if (trainedGroups.length >= 2) {
@@ -660,17 +694,20 @@ List<TrainingInsight> _generateInsights(
       final lowest = trainedGroups.last;
 
       if (lowest.value > 0 && highest.value > lowest.value * 3) {
-        insights.add(TrainingInsight(
-          id: 'imbalance_${highest.key.name}_${lowest.key.name}',
-          type: InsightType.muscleImbalance,
-          title: '⚖️ ${highest.key.displayName} vs ${lowest.key.displayName} imbalance',
-          description:
-              '${highest.key.displayName} volume is ${(highest.value / lowest.value).toStringAsFixed(1)}× higher than ${lowest.key.displayName}. Consider balancing your training.',
-          priority: 3,
-          icon: LucideIcons.scale,
-          color: AppColors.warning,
-          timestamp: now,
-        ));
+        insights.add(
+          TrainingInsight(
+            id: 'imbalance_${highest.key.name}_${lowest.key.name}',
+            type: InsightType.muscleImbalance,
+            title:
+                '⚖️ ${highest.key.displayName} vs ${lowest.key.displayName} imbalance',
+            description:
+                '${highest.key.displayName} volume is ${(highest.value / lowest.value).toStringAsFixed(1)}× higher than ${lowest.key.displayName}. Consider balancing your training.',
+            priority: 3,
+            icon: LucideIcons.scale,
+            color: AppColors.warning,
+            timestamp: now,
+          ),
+        );
       }
     }
   }
@@ -698,36 +735,39 @@ List<TrainingInsight> _generateInsights(
         entry.key != MuscleGroup.core &&
         entry.key != MuscleGroup.fullBody &&
         entry.key != MuscleGroup.cardio) {
-      insights.add(TrainingInsight(
-        id: 'overtrain_${entry.key.name}',
-        type: InsightType.overtrainingRisk,
-        title: '⚠️ ${entry.key.displayName} hit ${entry.value}× this week',
-        description:
-            'Training the same muscle ${entry.value} times in one week may hinder recovery. Consider a rest day.',
-        priority: 4,
-        icon: LucideIcons.alertTriangle,
-        color: AppColors.error,
-        timestamp: now,
-      ));
+      insights.add(
+        TrainingInsight(
+          id: 'overtrain_${entry.key.name}',
+          type: InsightType.overtrainingRisk,
+          title: '⚠️ ${entry.key.displayName} hit ${entry.value}× this week',
+          description:
+              'Training the same muscle ${entry.value} times in one week may hinder recovery. Consider a rest day.',
+          priority: 4,
+          icon: LucideIcons.alertTriangle,
+          color: AppColors.error,
+          timestamp: now,
+        ),
+      );
     }
   }
 
   // ── 7. Recovery Suggestion ─────────────────────────────────────────────
   if (completed.isNotEmpty) {
-    final daysSinceLast =
-        now.difference(completed.first.startTime).inDays;
+    final daysSinceLast = now.difference(completed.first.startTime).inDays;
     if (daysSinceLast >= 5) {
-      insights.add(TrainingInsight(
-        id: 'recovery_$daysSinceLast',
-        type: InsightType.recoverySuggestion,
-        title: '💪 Time to get back at it',
-        description:
-            'It\'s been $daysSinceLast days since your last workout. A light session can help maintain your gains.',
-        priority: 3,
-        icon: LucideIcons.heartPulse,
-        color: AppColors.info,
-        timestamp: now,
-      ));
+      insights.add(
+        TrainingInsight(
+          id: 'recovery_$daysSinceLast',
+          type: InsightType.recoverySuggestion,
+          title: '💪 Time to get back at it',
+          description:
+              "It's been $daysSinceLast days since your last workout. A light session can help maintain your gains.",
+          priority: 3,
+          icon: LucideIcons.heartPulse,
+          color: AppColors.info,
+          timestamp: now,
+        ),
+      );
     }
   }
 

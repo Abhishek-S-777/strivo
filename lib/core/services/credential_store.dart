@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:strivo/core/logging/app_logger.dart';
 
 /// Securely persists the last successful login so the app can silently
 /// re-authenticate when Firebase Auth's own session storage is dropped by the
@@ -35,29 +35,46 @@ class CredentialStore {
       final key = Hive.generateSecureKey();
       await _secure.write(key: _keyName, value: base64Encode(key));
       return key;
-    } catch (e) {
-      debugPrint('CredentialStore: keystore unavailable: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'CredentialStore: keystore unavailable',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
 
-  static Future<Box?> _openBox({bool create = false}) async {
+  static Future<Box<dynamic>?> _openBox({bool create = false}) async {
     final key = await _encryptionKey(create: create);
     if (key == null) return null;
     try {
-      if (Hive.isBoxOpen(_boxName)) return Hive.box(_boxName);
-      return await Hive.openBox(_boxName, encryptionCipher: HiveAesCipher(key));
-    } catch (e) {
-      debugPrint('CredentialStore: open failed: $e');
+      if (Hive.isBoxOpen(_boxName)) return Hive.box<dynamic>(_boxName);
+      return await Hive.openBox<dynamic>(
+        _boxName,
+        encryptionCipher: HiveAesCipher(key),
+      );
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'CredentialStore: open failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // A leftover box encrypted with a now-lost key can't be reopened; on a
       // save we can safely discard and recreate it with the current key.
       if (create) {
         try {
           await Hive.deleteBoxFromDisk(_boxName);
-          return await Hive.openBox(_boxName,
-              encryptionCipher: HiveAesCipher(key));
-        } catch (e2) {
-          debugPrint('CredentialStore: recreate failed: $e2');
+          return await Hive.openBox<dynamic>(
+            _boxName,
+            encryptionCipher: HiveAesCipher(key),
+          );
+        } on Object catch (e2, stackTrace2) {
+          AppLogger.warning(
+            'CredentialStore: recreate failed',
+            error: e2,
+            stackTrace: stackTrace2,
+          );
         }
       }
       return null;
@@ -87,8 +104,12 @@ class CredentialStore {
     try {
       final box = await _openBox();
       await box?.clear();
-    } catch (e) {
-      debugPrint('CredentialStore: clear failed: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'CredentialStore: clear failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 }

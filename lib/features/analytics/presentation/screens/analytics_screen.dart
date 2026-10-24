@@ -1,9 +1,11 @@
+import 'dart:async';
+
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/units/weight_unit.dart';
@@ -84,7 +86,7 @@ class AnalyticsScreen extends ConsumerWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               LucideIcons.flame,
                               size: 14,
                               color: AppColors.warning,
@@ -92,7 +94,7 @@ class AnalyticsScreen extends ConsumerWidget {
                             const SizedBox(width: 4),
                             Text(
                               '${streak.currentStreak}w streak',
-                              style: TextStyle(
+                              style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.warning,
@@ -119,7 +121,7 @@ class AnalyticsScreen extends ConsumerWidget {
                 sliver: SliverToBoxAdapter(
                   child: Row(
                     children: [
-                      Icon(
+                      const Icon(
                         LucideIcons.sparkles,
                         size: 18,
                         color: AppColors.primary,
@@ -280,7 +282,7 @@ class AnalyticsScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(32),
                       child: Column(
                         children: [
-                          Icon(
+                          const Icon(
                             LucideIcons.barChart3,
                             size: 40,
                             color: AppColors.textTertiary,
@@ -312,7 +314,7 @@ class AnalyticsScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(28),
                       child: Column(
                         children: [
-                          Icon(
+                          const Icon(
                             LucideIcons.search,
                             size: 34,
                             color: AppColors.textTertiary,
@@ -406,9 +408,8 @@ class AnalyticsScreen extends ConsumerWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _InsightCard extends StatelessWidget {
-  final TrainingInsight insight;
-
   const _InsightCard({required this.insight});
+  final TrainingInsight insight;
 
   @override
   Widget build(BuildContext context) {
@@ -647,15 +648,14 @@ class _WeeklyOverviewState extends ConsumerState<_WeeklyOverview> {
 }
 
 class _WeekNavButton extends StatelessWidget {
-  final IconData icon;
-  final bool enabled;
-  final VoidCallback onTap;
-
   const _WeekNavButton({
     required this.icon,
     required this.enabled,
     required this.onTap,
   });
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -688,9 +688,10 @@ class _WeekNavButton extends StatelessWidget {
 
 /// Search query for the "Exercise Progress" list. Auto-disposes (resets to '')
 /// when the Analytics screen leaves the tree.
-final analyticsExerciseQueryProvider = StateProvider.autoDispose<String>(
-  (ref) => '',
-);
+final AutoDisposeStateProvider<String> analyticsExerciseQueryProvider =
+    StateProvider.autoDispose<String>(
+      (ref) => '',
+    );
 
 class _ExerciseSearchField extends ConsumerStatefulWidget {
   const _ExerciseSearchField();
@@ -743,13 +744,12 @@ class _ExerciseSearchFieldState extends ConsumerState<_ExerciseSearchField> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _StrengthExercisePickerSheet extends StatefulWidget {
-  final List<ExerciseProgressData> exercises;
-  final String? selectedId;
-
   const _StrengthExercisePickerSheet({
     required this.exercises,
     this.selectedId,
   });
+  final List<ExerciseProgressData> exercises;
+  final String? selectedId;
 
   @override
   State<_StrengthExercisePickerSheet> createState() =>
@@ -880,13 +880,15 @@ class _StrengthExercisePickerSheetState
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _MuscleDistributionCard extends StatelessWidget {
-  final Map<MuscleGroup, double> muscleVolume;
-
   const _MuscleDistributionCard({required this.muscleVolume});
+  final Map<MuscleGroup, double> muscleVolume;
 
   @override
   Widget build(BuildContext context) {
-    final totalVolume = muscleVolume.values.fold(0.0, (sum, v) => sum + v);
+    final totalVolume = muscleVolume.values.fold<double>(
+      0,
+      (sum, v) => sum + v,
+    );
     if (totalVolume == 0) return const SizedBox.shrink();
 
     final sorted = muscleVolume.entries.toList()
@@ -904,14 +906,14 @@ class _MuscleDistributionCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'This week\'s volume by muscle group',
+              "This week's volume by muscle group",
               style: Theme.of(
                 context,
               ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
             const SizedBox(height: 16),
             ...sorted.map((entry) {
-              final percent = (entry.value / totalVolume * 100);
+              final percent = entry.value / totalVolume * 100;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Column(
@@ -970,7 +972,9 @@ class _MuscleDistributionCard extends StatelessWidget {
         return const Color(0xFFFF375F);
       case MuscleGroup.core:
         return AppColors.warning;
-      default:
+      case MuscleGroup.fullBody:
+      case MuscleGroup.cardio:
+      case MuscleGroup.other:
         return AppColors.textSecondary;
     }
   }
@@ -981,10 +985,9 @@ class _MuscleDistributionCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _ExerciseTrendCard extends StatelessWidget {
+  const _ExerciseTrendCard({required this.trend, required this.onTap});
   final ExerciseTrend trend;
   final VoidCallback onTap;
-
-  const _ExerciseTrendCard({required this.trend, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1097,7 +1100,7 @@ class _ExerciseTrendCard extends StatelessWidget {
               ],
             ),
             const SizedBox(width: 4),
-            Icon(
+            const Icon(
               LucideIcons.chevronRight,
               size: 16,
               color: AppColors.textTertiary,
@@ -1147,10 +1150,9 @@ class _ExerciseTrendCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _BasicExerciseCard extends StatelessWidget {
+  const _BasicExerciseCard({required this.progress, required this.onTap});
   final ExerciseProgressData progress;
   final VoidCallback onTap;
-
-  const _BasicExerciseCard({required this.progress, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -1215,7 +1217,7 @@ class _BasicExerciseCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(
+            const Icon(
               LucideIcons.chevronRight,
               size: 18,
               color: AppColors.textTertiary,
@@ -1232,10 +1234,9 @@ class _BasicExerciseCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _StrengthTrendCard extends StatefulWidget {
+  const _StrengthTrendCard({required this.exercises, required this.trends});
   final List<ExerciseProgressData> exercises;
   final List<ExerciseTrend> trends;
-
-  const _StrengthTrendCard({required this.exercises, required this.trends});
 
   @override
   State<_StrengthTrendCard> createState() => _StrengthTrendCardState();
@@ -1265,10 +1266,12 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
   void _select(String id) {
     setState(() => _selectedId = id);
     if (_chipScroll.hasClients) {
-      _chipScroll.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
+      unawaited(
+        _chipScroll.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        ),
       );
     }
   }
@@ -1498,16 +1501,13 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
       minY: minY,
       maxY: maxY,
       gridData: FlGridData(
-        show: true,
         drawVerticalLine: false,
         getDrawingHorizontalLine: (v) =>
             const FlLine(color: AppColors.chartGrid, strokeWidth: 0.5),
       ),
       titlesData: FlTitlesData(
-        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-        rightTitles: const AxisTitles(
-          sideTitles: SideTitles(showTitles: false),
-        ),
+        topTitles: const AxisTitles(),
+        rightTitles: const AxisTitles(),
         leftTitles: AxisTitles(
           sideTitles: SideTitles(
             showTitles: true,
@@ -1609,9 +1609,8 @@ class _StrengthTrendCardState extends State<_StrengthTrendCard> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 class _ConsistencyCard extends StatelessWidget {
-  final ConsistencyData data;
-
   const _ConsistencyCard({required this.data});
+  final ConsistencyData data;
 
   Color _levelColor(int level) {
     switch (level) {
@@ -1663,7 +1662,9 @@ class _ConsistencyCard extends StatelessWidget {
             // Grid: 7 rows (Mon→Sun) × 12 cols (weeks)
             LayoutBuilder(
               builder: (context, constraints) {
-                const cols = 12, rows = 7, gap = 4.0;
+                const cols = 12;
+                const rows = 7;
+                const gap = 4.0;
                 final cell = (constraints.maxWidth - gap * (cols - 1)) / cols;
                 return Column(
                   children: List.generate(rows, (r) {

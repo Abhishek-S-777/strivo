@@ -4,6 +4,41 @@ import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 /// A completed or in-progress workout session
 @immutable
 class WorkoutSession {
+  const WorkoutSession({
+    required this.id,
+    required this.name,
+    required this.exercises,
+    required this.startTime,
+    this.routineId,
+    this.routineName,
+    this.endTime,
+    this.notes,
+    this.isCompleted = false,
+    this.programId,
+    this.programWeek,
+    this.programDayName,
+  });
+
+  factory WorkoutSession.fromMap(Map<String, dynamic> map) {
+    return WorkoutSession(
+      id: map['id'] as String,
+      routineId: map['routineId'] as String?,
+      routineName: map['routineName'] as String?,
+      name: map['name'] as String,
+      exercises: (map['exercises'] as List)
+          .map((e) => WorkoutExercise.fromMap(e as Map<String, dynamic>))
+          .toList(),
+      startTime: DateTime.parse(map['startTime'] as String),
+      endTime: map['endTime'] != null
+          ? DateTime.parse(map['endTime'] as String)
+          : null,
+      notes: map['notes'] as String?,
+      isCompleted: map['isCompleted'] as bool? ?? false,
+      programId: map['programId'] as String?,
+      programWeek: (map['programWeek'] as num?)?.toInt(),
+      programDayName: map['programDayName'] as String?,
+    );
+  }
   final String id;
   final String? routineId;
   final String? routineName;
@@ -17,21 +52,6 @@ class WorkoutSession {
   final String? programId;
   final int? programWeek;
   final String? programDayName;
-
-  const WorkoutSession({
-    required this.id,
-    this.routineId,
-    this.routineName,
-    required this.name,
-    required this.exercises,
-    required this.startTime,
-    this.endTime,
-    this.notes,
-    this.isCompleted = false,
-    this.programId,
-    this.programWeek,
-    this.programDayName,
-  });
 
   /// Duration of the workout
   Duration get duration {
@@ -52,7 +72,7 @@ class WorkoutSession {
 
   /// Total volume across all exercises
   double get totalVolume {
-    return exercises.fold(0.0, (sum, e) => sum + e.totalVolume);
+    return exercises.fold(0, (sum, e) => sum + e.totalVolume);
   }
 
   /// Total completed sets
@@ -125,27 +145,6 @@ class WorkoutSession {
       'totalExercises': totalExercises,
       'duration': duration.inSeconds,
     };
-  }
-
-  factory WorkoutSession.fromMap(Map<String, dynamic> map) {
-    return WorkoutSession(
-      id: map['id'] as String,
-      routineId: map['routineId'] as String?,
-      routineName: map['routineName'] as String?,
-      name: map['name'] as String,
-      exercises: (map['exercises'] as List)
-          .map((e) => WorkoutExercise.fromMap(e as Map<String, dynamic>))
-          .toList(),
-      startTime: DateTime.parse(map['startTime'] as String),
-      endTime: map['endTime'] != null
-          ? DateTime.parse(map['endTime'] as String)
-          : null,
-      notes: map['notes'] as String?,
-      isCompleted: map['isCompleted'] as bool? ?? false,
-      programId: map['programId'] as String?,
-      programWeek: (map['programWeek'] as num?)?.toInt(),
-      programDayName: map['programDayName'] as String?,
-    );
   }
 
   @override

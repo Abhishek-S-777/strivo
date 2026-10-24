@@ -3,6 +3,20 @@ import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 
 class WeeklyStats {
+  // 0 = current week, -1 = last week, …
+
+  const WeeklyStats({
+    required this.weekStart,
+    this.workoutCount = 0,
+    this.totalVolume = 0,
+    this.totalSets = 0,
+    this.prCount = 0,
+    this.workoutCountDiff = 0,
+    this.volumeDiffPercent = 0,
+    this.trend = 'stagnant',
+    this.sessions = const [],
+    this.weekOffset = 0,
+  });
   final int workoutCount;
   final double totalVolume;
   final int totalSets;
@@ -12,30 +26,10 @@ class WeeklyStats {
   final String trend; // 'increase', 'decrease', 'stagnant'
   final List<WorkoutSession> sessions;
   final DateTime weekStart; // Monday 00:00 of the displayed week
-  final int weekOffset; // 0 = current week, -1 = last week, …
-
-  const WeeklyStats({
-    this.workoutCount = 0,
-    this.totalVolume = 0,
-    this.totalSets = 0,
-    this.prCount = 0,
-    this.workoutCountDiff = 0,
-    this.volumeDiffPercent = 0,
-    this.trend = 'stagnant',
-    this.sessions = const [],
-    required this.weekStart,
-    this.weekOffset = 0,
-  });
+  final int weekOffset;
 }
 
 class ExerciseProgressData {
-  final String exerciseName;
-  final String exerciseId;
-  final List<ExerciseProgressPoint> dataPoints;
-  final double currentMax;
-  final double previousMax;
-  final double allTimeMax;
-
   const ExerciseProgressData({
     required this.exerciseName,
     required this.exerciseId,
@@ -44,15 +38,15 @@ class ExerciseProgressData {
     this.previousMax = 0,
     this.allTimeMax = 0,
   });
+  final String exerciseName;
+  final String exerciseId;
+  final List<ExerciseProgressPoint> dataPoints;
+  final double currentMax;
+  final double previousMax;
+  final double allTimeMax;
 }
 
 class ExerciseProgressPoint {
-  final DateTime date;
-  final double maxWeight;
-  final double totalVolume;
-  final int totalReps;
-  final int totalSets;
-
   const ExerciseProgressPoint({
     required this.date,
     required this.maxWeight,
@@ -60,29 +54,35 @@ class ExerciseProgressPoint {
     required this.totalReps,
     required this.totalSets,
   });
+  final DateTime date;
+  final double maxWeight;
+  final double totalVolume;
+  final int totalReps;
+  final int totalSets;
 }
 
 // ── Weekly Stats Providers ──
 // A given ISO week, addressable by offset (0 = current, -1 = last week, …),
 // so the Analytics hero card can be swiped back through training history.
-final weeklyStatsForWeekProvider =
+final ProviderFamily<WeeklyStats, int> weeklyStatsForWeekProvider =
     Provider.family<WeeklyStats, int>((ref, weekOffset) {
-  final sessions = ref.watch(workoutSessionsProvider);
-  return _calculateWeeklyStats(sessions, weekOffset);
-});
+      final sessions = ref.watch(workoutSessionsProvider);
+      return _calculateWeeklyStats(sessions, weekOffset);
+    });
 
-final weeklyStatsProvider =
-    Provider<WeeklyStats>((ref) => ref.watch(weeklyStatsForWeekProvider(0)));
+final weeklyStatsProvider = Provider<WeeklyStats>(
+  (ref) => ref.watch(weeklyStatsForWeekProvider(0)),
+);
 
 /// Furthest week back (as a negative offset) that has any completed workout —
 /// the swipe boundary so the user can't page into empty pre-history.
 final earliestTrainedWeekOffsetProvider = Provider<int>((ref) {
   final sessions = ref.watch(workoutSessionsProvider);
   final currentMonday = _mondayOf(DateTime.now());
-  int earliest = 0;
+  var earliest = 0;
   for (final s in sessions.where((s) => s.isCompleted)) {
-    final weeks =
-        (currentMonday.difference(_mondayOf(s.startTime)).inDays / 7).round();
+    final weeks = (currentMonday.difference(_mondayOf(s.startTime)).inDays / 7)
+        .round();
     if (-weeks < earliest) earliest = -weeks;
   }
   return earliest;
@@ -93,10 +93,13 @@ DateTime _mondayOf(DateTime date) {
   return d.subtract(Duration(days: d.weekday - 1));
 }
 
-WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions,
-    [int weekOffset = 0]) {
-  final startOfWeekDate =
-      _mondayOf(DateTime.now()).add(Duration(days: 7 * weekOffset));
+WeeklyStats _calculateWeeklyStats(
+  List<WorkoutSession> allSessions, [
+  int weekOffset = 0,
+]) {
+  final startOfWeekDate = _mondayOf(
+    DateTime.now(),
+  ).add(Duration(days: 7 * weekOffset));
   final endOfWeekDate = startOfWeekDate.add(const Duration(days: 7));
   final startOfLastWeek = startOfWeekDate.subtract(const Duration(days: 7));
 
@@ -104,29 +107,38 @@ WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions,
   // workout of the week is never dropped (matches the insights engine), and
   // bounded above so a past week excludes later sessions.
   final thisWeekSessions = allSessions
-      .where((s) =>
-          s.isCompleted &&
-          !s.startTime.isBefore(startOfWeekDate) &&
-          s.startTime.isBefore(endOfWeekDate))
+      .where(
+        (s) =>
+            s.isCompleted &&
+            !s.startTime.isBefore(startOfWeekDate) &&
+            s.startTime.isBefore(endOfWeekDate),
+      )
       .toList();
 
   final lastWeekSessions = allSessions
-      .where((s) =>
-          s.isCompleted &&
-          !s.startTime.isBefore(startOfLastWeek) &&
-          s.startTime.isBefore(startOfWeekDate))
+      .where(
+        (s) =>
+            s.isCompleted &&
+            !s.startTime.isBefore(startOfLastWeek) &&
+            s.startTime.isBefore(startOfWeekDate),
+      )
       .toList();
 
-  final thisWeekVolume =
-      thisWeekSessions.fold(0.0, (sum, s) => sum + s.totalVolume);
-  final lastWeekVolume =
-      lastWeekSessions.fold(0.0, (sum, s) => sum + s.totalVolume);
+  final thisWeekVolume = thisWeekSessions.fold<double>(
+    0,
+    (sum, s) => sum + s.totalVolume,
+  );
+  final lastWeekVolume = lastWeekSessions.fold<double>(
+    0,
+    (sum, s) => sum + s.totalVolume,
+  );
 
-  final thisWeekSets =
-      thisWeekSessions.fold(0, (sum, s) => sum + s.totalCompletedSets);
+  final thisWeekSets = thisWeekSessions.fold(
+    0,
+    (sum, s) => sum + s.totalCompletedSets,
+  );
 
-  final prCount =
-      thisWeekSessions.fold(0, (sum, s) => sum + s.prCount);
+  final prCount = thisWeekSessions.fold(0, (sum, s) => sum + s.prCount);
 
   double volumeDiffPercent = 0;
   if (lastWeekVolume > 0) {
@@ -134,7 +146,7 @@ WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions,
         ((thisWeekVolume - lastWeekVolume) / lastWeekVolume) * 100;
   }
 
-  String trend = 'stagnant';
+  var trend = 'stagnant';
   if (volumeDiffPercent > 5) {
     trend = 'increase';
   } else if (volumeDiffPercent < -5) {
@@ -146,8 +158,7 @@ WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions,
     totalVolume: thisWeekVolume,
     totalSets: thisWeekSets,
     prCount: prCount,
-    workoutCountDiff:
-        thisWeekSessions.length - lastWeekSessions.length,
+    workoutCountDiff: thisWeekSessions.length - lastWeekSessions.length,
     volumeDiffPercent: volumeDiffPercent,
     trend: trend,
     sessions: thisWeekSessions,
@@ -157,35 +168,36 @@ WeeklyStats _calculateWeeklyStats(List<WorkoutSession> allSessions,
 }
 
 // ── Exercise Progress Provider ──
-final exerciseProgressProvider =
+final ProviderFamily<ExerciseProgressData, String> exerciseProgressProvider =
     Provider.family<ExerciseProgressData, String>((ref, exerciseId) {
-  final sessions = ref.watch(workoutSessionsProvider);
-  return _calculateExerciseProgress(sessions, exerciseId);
-});
+      final sessions = ref.watch(workoutSessionsProvider);
+      return _calculateExerciseProgress(sessions, exerciseId);
+    });
 
 ExerciseProgressData _calculateExerciseProgress(
-    List<WorkoutSession> allSessions, String exerciseId) {
+  List<WorkoutSession> allSessions,
+  String exerciseId,
+) {
   final dataPoints = <ExerciseProgressPoint>[];
-  String exerciseName = '';
+  var exerciseName = '';
   double allTimeMax = 0;
 
   // Go through sessions in chronological order
-  final sorted = allSessions
-      .where((s) => s.isCompleted)
-      .toList()
+  final sorted = allSessions.where((s) => s.isCompleted).toList()
     ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
   for (final session in sorted) {
     for (final exercise in session.exercises) {
       if (exercise.exercise.id == exerciseId) {
         exerciseName = exercise.exercise.name;
-        final completedSets =
-            exercise.sets.where((s) => s.isCompleted && !s.isWarmup);
+        final completedSets = exercise.sets.where(
+          (s) => s.isCompleted && !s.isWarmup,
+        );
         if (completedSets.isEmpty) continue;
 
         double maxWeight = 0;
         double totalVolume = 0;
-        int totalReps = 0;
+        var totalReps = 0;
 
         for (final set in completedSets) {
           if (set.weight > maxWeight) maxWeight = set.weight;
@@ -195,13 +207,15 @@ ExerciseProgressData _calculateExerciseProgress(
 
         if (maxWeight > allTimeMax) allTimeMax = maxWeight;
 
-        dataPoints.add(ExerciseProgressPoint(
-          date: session.startTime,
-          maxWeight: maxWeight,
-          totalVolume: totalVolume,
-          totalReps: totalReps,
-          totalSets: completedSets.length,
-        ));
+        dataPoints.add(
+          ExerciseProgressPoint(
+            date: session.startTime,
+            maxWeight: maxWeight,
+            totalVolume: totalVolume,
+            totalReps: totalReps,
+            totalSets: completedSets.length,
+          ),
+        );
       }
     }
   }
@@ -211,21 +225,15 @@ ExerciseProgressData _calculateExerciseProgress(
     exerciseId: exerciseId,
     dataPoints: dataPoints,
     currentMax: dataPoints.isNotEmpty ? dataPoints.last.maxWeight : 0,
-    previousMax:
-        dataPoints.length > 1 ? dataPoints[dataPoints.length - 2].maxWeight : 0,
+    previousMax: dataPoints.length > 1
+        ? dataPoints[dataPoints.length - 2].maxWeight
+        : 0,
     allTimeMax: allTimeMax,
   );
 }
 
 // ── Daily Comparison Provider ──
 class DailyComparison {
-  final String routineName;
-  final int currentSets;
-  final int previousSets;
-  final double currentVolume;
-  final double previousVolume;
-  final Map<String, ExerciseComparison> exerciseComparisons;
-
   const DailyComparison({
     required this.routineName,
     required this.currentSets,
@@ -234,18 +242,18 @@ class DailyComparison {
     required this.previousVolume,
     required this.exerciseComparisons,
   });
+  final String routineName;
+  final int currentSets;
+  final int previousSets;
+  final double currentVolume;
+  final double previousVolume;
+  final Map<String, ExerciseComparison> exerciseComparisons;
 
   int get setDiff => currentSets - previousSets;
   double get volumeDiff => currentVolume - previousVolume;
 }
 
 class ExerciseComparison {
-  final String exerciseName;
-  final double currentWeight;
-  final double previousWeight;
-  final int currentReps;
-  final int previousReps;
-
   const ExerciseComparison({
     required this.exerciseName,
     required this.currentWeight,
@@ -253,78 +261,86 @@ class ExerciseComparison {
     required this.currentReps,
     required this.previousReps,
   });
+  final String exerciseName;
+  final double currentWeight;
+  final double previousWeight;
+  final int currentReps;
+  final int previousReps;
 
   double get weightDiff => currentWeight - previousWeight;
   int get repDiff => currentReps - previousReps;
 }
 
-final dailyComparisonProvider =
+final ProviderFamily<DailyComparison?, String> dailyComparisonProvider =
     Provider.family<DailyComparison?, String>((ref, sessionId) {
-  final sessions = ref.watch(workoutSessionsProvider);
-  final currentSession = sessions.firstWhere(
-    (s) => s.id == sessionId,
-    orElse: () => sessions.first,
-  );
-
-  if (currentSession.routineId == null) return null;
-
-  // Find the previous session with same routine
-  final routineSessions = sessions
-      .where((s) =>
-          s.routineId == currentSession.routineId &&
-          s.id != sessionId &&
-          s.isCompleted)
-      .toList()
-    ..sort((a, b) => b.startTime.compareTo(a.startTime));
-
-  if (routineSessions.isEmpty) return null;
-
-  final previousSession = routineSessions.first;
-
-  final exerciseComparisons = <String, ExerciseComparison>{};
-
-  for (final exercise in currentSession.exercises) {
-    final prev = previousSession.exercises
-        .where((e) => e.exercise.id == exercise.exercise.id)
-        .firstOrNull;
-    if (prev != null) {
-      exerciseComparisons[exercise.exercise.id] = ExerciseComparison(
-        exerciseName: exercise.exercise.name,
-        currentWeight: exercise.maxWeight,
-        previousWeight: prev.maxWeight,
-        currentReps: exercise.sets
-            .where((s) => s.isCompleted)
-            .fold(0, (sum, s) => sum + s.reps),
-        previousReps: prev.sets
-            .where((s) => s.isCompleted)
-            .fold(0, (sum, s) => sum + s.reps),
+      final sessions = ref.watch(workoutSessionsProvider);
+      final currentSession = sessions.firstWhere(
+        (s) => s.id == sessionId,
+        orElse: () => sessions.first,
       );
-    }
-  }
 
-  return DailyComparison(
-    routineName: currentSession.routineName ?? currentSession.name,
-    currentSets: currentSession.totalCompletedSets,
-    previousSets: previousSession.totalCompletedSets,
-    currentVolume: currentSession.totalVolume,
-    previousVolume: previousSession.totalVolume,
-    exerciseComparisons: exerciseComparisons,
-  );
-});
+      if (currentSession.routineId == null) return null;
+
+      // Find the previous session with same routine
+      final routineSessions =
+          sessions
+              .where(
+                (s) =>
+                    s.routineId == currentSession.routineId &&
+                    s.id != sessionId &&
+                    s.isCompleted,
+              )
+              .toList()
+            ..sort((a, b) => b.startTime.compareTo(a.startTime));
+
+      if (routineSessions.isEmpty) return null;
+
+      final previousSession = routineSessions.first;
+
+      final exerciseComparisons = <String, ExerciseComparison>{};
+
+      for (final exercise in currentSession.exercises) {
+        final prev = previousSession.exercises
+            .where((e) => e.exercise.id == exercise.exercise.id)
+            .firstOrNull;
+        if (prev != null) {
+          exerciseComparisons[exercise.exercise.id] = ExerciseComparison(
+            exerciseName: exercise.exercise.name,
+            currentWeight: exercise.maxWeight,
+            previousWeight: prev.maxWeight,
+            currentReps: exercise.sets
+                .where((s) => s.isCompleted)
+                .fold(0, (sum, s) => sum + s.reps),
+            previousReps: prev.sets
+                .where((s) => s.isCompleted)
+                .fold(0, (sum, s) => sum + s.reps),
+          );
+        }
+      }
+
+      return DailyComparison(
+        routineName: currentSession.routineName ?? currentSession.name,
+        currentSets: currentSession.totalCompletedSets,
+        previousSets: previousSession.totalCompletedSets,
+        currentVolume: currentSession.totalVolume,
+        previousVolume: previousSession.totalVolume,
+        exerciseComparisons: exerciseComparisons,
+      );
+    });
 
 // ── Consistency Heatmap (last 12 weeks, day-level) ──
 class ConsistencyData {
-  /// 12 weeks (oldest → newest); each is 7 day-levels (Mon→Sun).
-  /// Levels: -1 future, 0 rest, 1 light, 2 solid, 3 elite.
-  final List<List<int>> weeks;
-  final int activeDays;
-  final int totalDays;
-
   const ConsistencyData({
     required this.weeks,
     required this.activeDays,
     required this.totalDays,
   });
+
+  /// 12 weeks (oldest → newest); each is 7 day-levels (Mon→Sun).
+  /// Levels: -1 future, 0 rest, 1 light, 2 solid, 3 elite.
+  final List<List<int>> weeks;
+  final int activeDays;
+  final int totalDays;
 
   bool get isEmpty => activeDays == 0;
 }
@@ -351,12 +367,12 @@ ConsistencyData _calculateConsistency(List<WorkoutSession> sessions) {
       ? 0.0
       : dayVolume.values.reduce((a, b) => a > b ? a : b);
 
-  int activeDays = 0;
+  var activeDays = 0;
   final weeks = <List<int>>[];
-  for (int w = 0; w < 12; w++) {
+  for (var w = 0; w < 12; w++) {
     final weekStart = start.add(Duration(days: 7 * w));
     final days = <int>[];
-    for (int d = 0; d < 7; d++) {
+    for (var d = 0; d < 7; d++) {
       final day = weekStart.add(Duration(days: d));
       if (day.isAfter(today)) {
         days.add(-1);
@@ -385,7 +401,9 @@ ConsistencyData _calculateConsistency(List<WorkoutSession> sessions) {
 }
 
 // ── All Exercises With History ──
-final exercisesWithHistoryProvider = Provider<List<ExerciseProgressData>>((ref) {
+final exercisesWithHistoryProvider = Provider<List<ExerciseProgressData>>((
+  ref,
+) {
   final sessions = ref.watch(workoutSessionsProvider);
   final exerciseIds = <String>{};
 
