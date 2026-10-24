@@ -1,12 +1,14 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:strivo/core/theme/app_colors.dart';
-import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/core/services/export_service.dart';
 import 'package:strivo/core/services/firestore_sync_service.dart';
+import 'package:strivo/core/theme/app_colors.dart';
+import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
@@ -17,14 +19,19 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(workoutSessionsProvider);
-    final completedSessions =
-        sessions.where((s) => s.isCompleted).toList();
-    final totalVolume =
-        completedSessions.fold(0.0, (sum, s) => sum + s.totalVolume);
-    final totalSets =
-        completedSessions.fold(0, (sum, s) => sum + s.totalCompletedSets);
+    final completedSessions = sessions.where((s) => s.isCompleted).toList();
+    final totalVolume = completedSessions.fold<double>(
+      0,
+      (sum, s) => sum + s.totalVolume,
+    );
+    final totalSets = completedSessions.fold(
+      0,
+      (sum, s) => sum + s.totalCompletedSets,
+    );
     final totalDuration = completedSessions.fold(
-        Duration.zero, (sum, s) => sum + s.duration);
+      Duration.zero,
+      (sum, s) => sum + s.duration,
+    );
     final unit = ref.watch(weightUnitProvider);
     ref.watch(weightIncrementProvider); // rebuild on increment change
     final defaultRest = ref.watch(defaultRestSecondsProvider);
@@ -225,8 +232,8 @@ class ProfileScreen extends ConsumerWidget {
                   Text(
                     isSignedIn
                         ? ((user.displayName?.isNotEmpty ?? false)
-                            ? user.displayName!
-                            : (user.email ?? 'Athlete'))
+                              ? user.displayName!
+                              : (user.email ?? 'Athlete'))
                         : 'Strivo Athlete',
                     style: Theme.of(context).textTheme.titleMedium,
                     maxLines: 1,
@@ -237,26 +244,30 @@ class ProfileScreen extends ConsumerWidget {
                     children: [
                       Text(
                         '$workoutCount workouts completed',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textSecondary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                       if (isSignedIn) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.success.withAlpha(20),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(LucideIcons.cloud,
-                                  size: 10, color: AppColors.success),
-                              const SizedBox(width: 3),
+                              Icon(
+                                LucideIcons.cloud,
+                                size: 10,
+                                color: AppColors.success,
+                              ),
+                              SizedBox(width: 3),
                               Text(
                                 'Synced',
                                 style: TextStyle(
@@ -290,8 +301,11 @@ class ProfileScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              Icon(LucideIcons.cloudOff,
-                  size: 32, color: AppColors.textTertiary),
+              const Icon(
+                LucideIcons.cloudOff,
+                size: 32,
+                color: AppColors.textTertiary,
+              ),
               const SizedBox(height: 12),
               Text(
                 'Sign in to back up your data',
@@ -300,10 +314,9 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 'Your workouts and routines will sync across devices',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: AppColors.textTertiary),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
@@ -356,57 +369,63 @@ class ProfileScreen extends ConsumerWidget {
     );
     try {
       await FirestoreSyncService.instance.pushAllLocal();
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        const SnackBar(content: Text('✓ Workouts backed up to cloud')),
-      );
-    } catch (_) {
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        const SnackBar(
-            content: Text('Backup failed — check your connection.')),
-      );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('✓ Workouts backed up to cloud')),
+        );
+    } on Object catch (_) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Backup failed — check your connection.'),
+          ),
+        );
     }
   }
 
   void _showWeightUnitPicker(BuildContext context, WidgetRef ref) {
     final current = ref.read(weightUnitProvider);
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Weight Unit',
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              'Applies across logging, analytics and exports. Existing data is converted automatically.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
-            ),
-            const SizedBox(height: 16),
-            for (final u in WeightUnit.values)
-              ListTile(
-                title: Text(u == WeightUnit.kg
-                    ? 'Kilograms (kg)'
-                    : 'Pounds (lbs)'),
-                leading: Icon(
-                  u == current ? LucideIcons.checkCircle : LucideIcons.circle,
-                  color: u == current
-                      ? AppColors.primary
-                      : AppColors.textTertiary,
-                ),
-                onTap: () {
-                  ref.read(weightUnitProvider.notifier).setUnit(u);
-                  Navigator.pop(ctx);
-                },
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Weight Unit',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'Applies across logging, analytics and exports. Existing data is converted automatically.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              ),
+              const SizedBox(height: 16),
+              for (final u in WeightUnit.values)
+                ListTile(
+                  title: Text(
+                    u == WeightUnit.kg ? 'Kilograms (kg)' : 'Pounds (lbs)',
+                  ),
+                  leading: Icon(
+                    u == current ? LucideIcons.checkCircle : LucideIcons.circle,
+                    color: u == current
+                        ? AppColors.primary
+                        : AppColors.textTertiary,
+                  ),
+                  onTap: () {
+                    ref.read(weightUnitProvider.notifier).setUnit(u);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -428,56 +447,61 @@ class ProfileScreen extends ConsumerWidget {
       }
       try {
         await ExportService.instance.share(fmt, sessions);
-      } catch (_) {
+      } on Object catch (_) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not export. Please try again.')),
+            const SnackBar(
+              content: Text('Could not export. Please try again.'),
+            ),
           );
         }
       }
     }
 
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Export Data',
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              '${sessions.length} completed workouts · weights in ${Units.label}',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
-            ),
-            const SizedBox(height: 12),
-            _SettingsTile(
-              icon: LucideIcons.sparkles,
-              title: 'AI Training Report',
-              subtitle:
-                  'Readable Markdown summary — paste to an AI to tune diet & recovery',
-              onTap: () => run(ExportFormat.report),
-            ),
-            const Divider(),
-            _SettingsTile(
-              icon: LucideIcons.table,
-              title: 'CSV (spreadsheet)',
-              subtitle: 'One row per set — open in Excel/Sheets or diet apps',
-              onTap: () => run(ExportFormat.csv),
-            ),
-            const Divider(),
-            _SettingsTile(
-              icon: LucideIcons.braces,
-              title: 'JSON (full backup)',
-              subtitle: 'Complete structured data (canonical kg)',
-              onTap: () => run(ExportFormat.json),
-            ),
-          ],
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Export Data',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${sessions.length} completed workouts · weights in ${Units.label}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              ),
+              const SizedBox(height: 12),
+              _SettingsTile(
+                icon: LucideIcons.sparkles,
+                title: 'AI Training Report',
+                subtitle:
+                    'Readable Markdown summary — paste to an AI to tune diet & recovery',
+                onTap: () => run(ExportFormat.report),
+              ),
+              const Divider(),
+              _SettingsTile(
+                icon: LucideIcons.table,
+                title: 'CSV (spreadsheet)',
+                subtitle: 'One row per set — open in Excel/Sheets or diet apps',
+                onTap: () => run(ExportFormat.csv),
+              ),
+              const Divider(),
+              _SettingsTile(
+                icon: LucideIcons.braces,
+                title: 'JSON (full backup)',
+                subtitle: 'Complete structured data (canonical kg)',
+                onTap: () => run(ExportFormat.json),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -488,44 +512,49 @@ class ProfileScreen extends ConsumerWidget {
 
   void _showRestTimerPicker(BuildContext context, WidgetRef ref) {
     final current = ref.read(defaultRestSecondsProvider);
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Default Rest Timer',
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              'Used between sets when a routine has no rest set for an exercise.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
-            ),
-            const SizedBox(height: 12),
-            for (final seconds in [45, 60, 90, 120, 180, 300])
-              ListTile(
-                title: Text(
-                    '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')} min'),
-                leading: Icon(
-                  seconds == current
-                      ? LucideIcons.checkCircle
-                      : LucideIcons.circle,
-                  color: seconds == current
-                      ? AppColors.primary
-                      : AppColors.textTertiary,
-                ),
-                onTap: () {
-                  ref.read(defaultRestSecondsProvider.notifier)
-                      .setSeconds(seconds);
-                  Navigator.pop(ctx);
-                },
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Default Rest Timer',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'Used between sets when a routine has no rest set for an exercise.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              ),
+              const SizedBox(height: 12),
+              for (final seconds in [45, 60, 90, 120, 180, 300])
+                ListTile(
+                  title: Text(
+                    '${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')} min',
+                  ),
+                  leading: Icon(
+                    seconds == current
+                        ? LucideIcons.checkCircle
+                        : LucideIcons.circle,
+                    color: seconds == current
+                        ? AppColors.primary
+                        : AppColors.textTertiary,
+                  ),
+                  onTap: () {
+                    ref
+                        .read(defaultRestSecondsProvider.notifier)
+                        .setSeconds(seconds);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -533,91 +562,102 @@ class ProfileScreen extends ConsumerWidget {
 
   void _showIncrementPicker(BuildContext context, WidgetRef ref) {
     final current = Units.stepDisplay;
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Weight Increments',
-                style: Theme.of(context).textTheme.headlineSmall),
-            const SizedBox(height: 4),
-            Text(
-              'How much the +/- buttons add or remove during logging (${Units.label}).',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
-            ),
-            const SizedBox(height: 12),
-            for (final inc in Units.incrementOptions)
-              ListTile(
-                title: Text(
-                    '${inc % 1 == 0 ? inc.toStringAsFixed(0) : inc.toStringAsFixed(1)} ${Units.label}'),
-                leading: Icon(
-                  inc == current
-                      ? LucideIcons.checkCircle
-                      : LucideIcons.circle,
-                  color:
-                      inc == current ? AppColors.primary : AppColors.textTertiary,
-                ),
-                onTap: () {
-                  ref.read(weightIncrementProvider.notifier).setIncrement(inc);
-                  Navigator.pop(ctx);
-                },
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Weight Increments',
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-          ],
+              const SizedBox(height: 4),
+              Text(
+                'How much the +/- buttons add or remove during logging (${Units.label}).',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
+              ),
+              const SizedBox(height: 12),
+              for (final inc in Units.incrementOptions)
+                ListTile(
+                  title: Text(
+                    '${inc % 1 == 0 ? inc.toStringAsFixed(0) : inc.toStringAsFixed(1)} ${Units.label}',
+                  ),
+                  leading: Icon(
+                    inc == current
+                        ? LucideIcons.checkCircle
+                        : LucideIcons.circle,
+                    color: inc == current
+                        ? AppColors.primary
+                        : AppColors.textTertiary,
+                  ),
+                  onTap: () {
+                    ref
+                        .read(weightIncrementProvider.notifier)
+                        .setIncrement(inc);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
   void _showPlateCalculator(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => const _PlateCalculatorSheet(),
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (ctx) => const _PlateCalculatorSheet(),
+      ),
     );
   }
 
   void _confirmSignOut(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Sign Out?'),
-        content: const Text(
-            'Your workouts stay backed up in the cloud and on this device.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Sign Out?'),
+          content: const Text(
+            'Your workouts stay backed up in the cloud and on this device.',
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(authControllerProvider).signOut();
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            child: const Text('Sign Out'),
-          ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                unawaited(ref.read(authControllerProvider).signOut());
+              },
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
+              child: const Text('Sign Out'),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _AllTimeStatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
   const _AllTimeStatCard({
     required this.label,
     required this.value,
     required this.icon,
   });
+  final String label;
+  final String value;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -632,16 +672,15 @@ class _AllTimeStatCard extends StatelessWidget {
             Text(
               value,
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ),
@@ -651,17 +690,16 @@ class _AllTimeStatCard extends StatelessWidget {
 }
 
 class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
   const _SettingsTile({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -684,16 +722,18 @@ class _SettingsTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
-                        ?.copyWith(color: AppColors.textTertiary),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(LucideIcons.chevronRight,
-                size: 18, color: AppColors.textTertiary),
+            const Icon(
+              LucideIcons.chevronRight,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
           ],
         ),
       ),
@@ -724,7 +764,7 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
   String get _unit => _isLbs ? 'lbs' : 'kg';
 
   List<double> _calculatePlates() {
-    double remaining = (_targetWeight - _barWeight) / 2;
+    var remaining = (_targetWeight - _barWeight) / 2;
     if (remaining <= 0.001) return [];
 
     const epsilon = 0.001; // tolerate floating-point drift
@@ -748,15 +788,16 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Plate Calculator',
-              style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            'Plate Calculator',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           const SizedBox(height: 8),
           Text(
             'Bar weight: ${_barWeight.toStringAsFixed(0)} $_unit',
-            style: Theme.of(context)
-                .textTheme
-                .bodySmall
-                ?.copyWith(color: AppColors.textTertiary),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
           ),
           const SizedBox(height: 20),
 
@@ -764,8 +805,12 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
           Row(
             children: [
               IconButton(
-                onPressed: () => setState(() => _targetWeight =
-                    (_targetWeight - _step).clamp(_barWeight, _maxTarget)),
+                onPressed: () => setState(
+                  () => _targetWeight = (_targetWeight - _step).clamp(
+                    _barWeight,
+                    _maxTarget,
+                  ),
+                ),
                 icon: const Icon(LucideIcons.minus),
               ),
               Expanded(
@@ -773,24 +818,27 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
                   children: [
                     Text(
                       '${_targetWeight.toStringAsFixed(_targetWeight % 1 == 0 ? 0 : 1)} $_unit',
-                      style:
-                          Theme.of(context).textTheme.displayMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                      style: Theme.of(context).textTheme.displayMedium
+                          ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                     Text(
                       'Target Weight',
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: AppColors.textTertiary),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
-                onPressed: () => setState(() => _targetWeight =
-                    (_targetWeight + _step).clamp(_barWeight, _maxTarget)),
+                onPressed: () => setState(
+                  () => _targetWeight = (_targetWeight + _step).clamp(
+                    _barWeight,
+                    _maxTarget,
+                  ),
+                ),
                 icon: const Icon(LucideIcons.plus),
               ),
             ],
@@ -800,43 +848,46 @@ class _PlateCalculatorSheetState extends State<_PlateCalculatorSheet> {
           // Plates visualization
           Text(
             'Per side:',
-            style: Theme.of(context)
-                .textTheme
-                .titleSmall
-                ?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 12),
 
           if (plates.isEmpty)
             Text(
               'Just the bar!',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary),
             )
           else
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: plates
-                  .map((p) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: _getPlateColor(p).withAlpha(20),
-                          borderRadius: BorderRadius.circular(8),
-                          border:
-                              Border.all(color: _getPlateColor(p).withAlpha(60)),
+                  .map(
+                    (p) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _getPlateColor(p).withAlpha(20),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _getPlateColor(p).withAlpha(60),
                         ),
-                        child: Text(
-                          '${p.toStringAsFixed(p == p.roundToDouble() ? 0 : 1)} $_unit',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: _getPlateColor(p),
-                          ),
+                      ),
+                      child: Text(
+                        '${p.toStringAsFixed(p == p.roundToDouble() ? 0 : 1)} $_unit',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: _getPlateColor(p),
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
           const SizedBox(height: 24),

@@ -3,12 +3,6 @@ import 'package:flutter/foundation.dart';
 /// A progress photo entry
 @immutable
 class ProgressPhoto {
-  final String id;
-  final String imagePath;
-  final DateTime date;
-  final String? note;
-  final double? bodyWeight;
-
   const ProgressPhoto({
     required this.id,
     required this.imagePath,
@@ -16,6 +10,21 @@ class ProgressPhoto {
     this.note,
     this.bodyWeight,
   });
+
+  factory ProgressPhoto.fromMap(Map<String, dynamic> map) {
+    return ProgressPhoto(
+      id: map['id'] as String,
+      imagePath: map['imagePath'] as String,
+      date: DateTime.parse(map['date'] as String),
+      note: map['note'] as String?,
+      bodyWeight: (map['bodyWeight'] as num?)?.toDouble(),
+    );
+  }
+  final String id;
+  final String imagePath;
+  final DateTime date;
+  final String? note;
+  final double? bodyWeight;
 
   ProgressPhoto copyWith({
     String? id,
@@ -41,16 +50,6 @@ class ProgressPhoto {
       'note': note,
       'bodyWeight': bodyWeight,
     };
-  }
-
-  factory ProgressPhoto.fromMap(Map<String, dynamic> map) {
-    return ProgressPhoto(
-      id: map['id'] as String,
-      imagePath: map['imagePath'] as String,
-      date: DateTime.parse(map['date'] as String),
-      note: map['note'] as String?,
-      bodyWeight: (map['bodyWeight'] as num?)?.toDouble(),
-    );
   }
 
   @override

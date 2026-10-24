@@ -17,10 +17,10 @@ class SplashScreen extends StatelessWidget {
             Text(
               'STRIVO',
               style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 3,
-                  ),
+                color: AppColors.primary,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 3,
+              ),
             ),
             const SizedBox(height: 24),
             const SizedBox(

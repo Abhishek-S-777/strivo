@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:strivo/features/workout/presentation/screens/home_screen.dart';
-import 'package:strivo/features/workout/presentation/screens/active_workout_screen.dart';
-import 'package:strivo/features/workout/presentation/screens/workout_summary_screen.dart';
-import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
-import 'package:strivo/features/routines/presentation/screens/routine_builder_screen.dart';
-import 'package:strivo/features/programs/presentation/screens/program_builder_screen.dart';
 import 'package:strivo/features/analytics/presentation/screens/analytics_screen.dart';
 import 'package:strivo/features/analytics/presentation/screens/exercise_history_screen.dart';
-import 'package:strivo/features/profile/presentation/screens/profile_screen.dart';
+import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
 // Progress (photos) tab temporarily disabled — see commented route below.
 // import 'package:strivo/features/progress_photos/presentation/screens/progress_photos_screen.dart';
 import 'package:strivo/features/auth/presentation/screens/auth_screen.dart';
 import 'package:strivo/features/auth/presentation/screens/splash_screen.dart';
-import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
+import 'package:strivo/features/profile/presentation/screens/profile_screen.dart';
+import 'package:strivo/features/programs/presentation/screens/program_builder_screen.dart';
+import 'package:strivo/features/routines/presentation/screens/routine_builder_screen.dart';
+import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
+import 'package:strivo/features/workout/presentation/screens/active_workout_screen.dart';
+import 'package:strivo/features/workout/presentation/screens/home_screen.dart';
+import 'package:strivo/features/workout/presentation/screens/workout_summary_screen.dart';
 import 'package:strivo/shared/widgets/main_shell.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -126,8 +126,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) {
           final exerciseId = state.pathParameters['exerciseId']!;
-          final exerciseName =
-              state.uri.queryParameters['name'] ?? 'Exercise';
+          final exerciseName = state.uri.queryParameters['name'] ?? 'Exercise';
           return ExerciseHistoryScreen(
             exerciseId: exerciseId,
             exerciseName: exerciseName,

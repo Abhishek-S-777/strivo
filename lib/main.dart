@@ -1,10 +1,11 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:strivo/app.dart';
+import 'package:strivo/core/logging/app_logger.dart';
 import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/firebase_options.dart';
 
@@ -27,7 +28,7 @@ void main() async {
   // On-brand error boundary: a widget that throws while building should never
   // leave the user staring at a blank/white area. Show a dark, readable card
   // instead (with the real error surfaced in debug builds).
-  ErrorWidget.builder = (FlutterErrorDetails details) => _StrivoErrorView(details);
+  ErrorWidget.builder = _StrivoErrorView.new;
 
   // Initialize Hive (offline-first local storage)
   await Hive.initFlutter();
@@ -38,10 +39,13 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    debugPrint('✅ Firebase initialized (project: strivo-gym)');
-  } catch (e) {
-    debugPrint('⚠️ Firebase initialization failed: $e');
-    debugPrint('   App will run in offline-only mode (Hive).');
+    AppLogger.info('Firebase initialized (project: strivo-gym)');
+  } on Object catch (e, stackTrace) {
+    AppLogger.warning(
+      'Firebase initialization failed; running offline-only (Hive).',
+      error: e,
+      stackTrace: stackTrace,
+    );
   }
 
   runApp(const ProviderScope(child: StrivoApp()));
@@ -50,8 +54,8 @@ void main() async {
 /// Fallback shown in place of any widget that throws during build — dark and
 /// on-brand, so a render failure degrades gracefully instead of blanking out.
 class _StrivoErrorView extends StatelessWidget {
-  final FlutterErrorDetails details;
   const _StrivoErrorView(this.details);
+  final FlutterErrorDetails details;
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +68,11 @@ class _StrivoErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.warning_amber_rounded,
-                color: Color(0xFFADC6FF), size: 36),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFADC6FF),
+              size: 36,
+            ),
             const SizedBox(height: 12),
             const Text(
               "Couldn't display this",

@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:strivo/core/logging/app_logger.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Opens a demo/tutorial video for an exercise.
 ///
@@ -29,8 +29,12 @@ class ExerciseVideo {
     final uri = uriFor(exercise);
     try {
       return await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (e) {
-      debugPrint('⚠️ Could not open video for ${exercise.name}: $e');
+    } on Object catch (e, stackTrace) {
+      AppLogger.warning(
+        'Could not open video for ${exercise.name}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return false;
     }
   }

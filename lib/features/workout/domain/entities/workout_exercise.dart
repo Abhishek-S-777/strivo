@@ -5,6 +5,27 @@ import 'package:strivo/features/workout/domain/entities/exercise_set.dart';
 /// An exercise instance within a workout session
 @immutable
 class WorkoutExercise {
+  const WorkoutExercise({
+    required this.id,
+    required this.exercise,
+    required this.sets,
+    required this.order,
+    this.notes,
+    this.restSeconds,
+  });
+
+  factory WorkoutExercise.fromMap(Map<String, dynamic> map) {
+    return WorkoutExercise(
+      id: map['id'] as String,
+      exercise: Exercise.fromMap(map['exercise'] as Map<String, dynamic>),
+      sets: (map['sets'] as List)
+          .map((s) => ExerciseSet.fromMap(s as Map<String, dynamic>))
+          .toList(),
+      notes: map['notes'] as String?,
+      order: (map['order'] as num).toInt(),
+      restSeconds: (map['restSeconds'] as num?)?.toInt(),
+    );
+  }
   final String id;
   final Exercise exercise;
   final List<ExerciseSet> sets;
@@ -12,20 +33,11 @@ class WorkoutExercise {
   final int order;
   final int? restSeconds;
 
-  const WorkoutExercise({
-    required this.id,
-    required this.exercise,
-    required this.sets,
-    this.notes,
-    required this.order,
-    this.restSeconds,
-  });
-
   /// Total volume for this exercise (weight × reps for all completed sets)
   double get totalVolume {
     return sets
         .where((s) => s.isCompleted && !s.isWarmup)
-        .fold(0.0, (sum, s) => sum + s.volume);
+        .fold(0, (sum, s) => sum + s.volume);
   }
 
   /// Number of completed working sets
@@ -38,7 +50,7 @@ class WorkoutExercise {
     if (sets.isEmpty) return 0;
     return sets
         .where((s) => s.isCompleted)
-        .fold(0.0, (max, s) => s.weight > max ? s.weight : max);
+        .fold(0, (max, s) => s.weight > max ? s.weight : max);
   }
 
   /// Best set (highest volume single set)
@@ -76,19 +88,6 @@ class WorkoutExercise {
       'order': order,
       'restSeconds': restSeconds,
     };
-  }
-
-  factory WorkoutExercise.fromMap(Map<String, dynamic> map) {
-    return WorkoutExercise(
-      id: map['id'] as String,
-      exercise: Exercise.fromMap(map['exercise'] as Map<String, dynamic>),
-      sets: (map['sets'] as List)
-          .map((s) => ExerciseSet.fromMap(s as Map<String, dynamic>))
-          .toList(),
-      notes: map['notes'] as String?,
-      order: (map['order'] as num).toInt(),
-      restSeconds: (map['restSeconds'] as num?)?.toInt(),
-    );
   }
 
   @override

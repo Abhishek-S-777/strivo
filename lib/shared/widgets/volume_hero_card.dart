@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
@@ -7,15 +7,23 @@ import 'package:strivo/core/units/weight_unit.dart';
 
 /// A small inline stat shown in the hero card footer (e.g. Workouts • Sets • PRs).
 class HeroStat {
+  const HeroStat(this.label, this.value, {this.color});
   final String label;
   final String value;
   final Color? color;
-  const HeroStat(this.label, this.value, {this.color});
 }
 
 /// Premium "Weekly Volume" hero card — big number, trend pill, and a smooth
 /// sparkline of recent weekly volume. Reused on Home and Analytics.
 class VolumeHeroCard extends StatelessWidget {
+  const VolumeHeroCard({
+    required this.label,
+    required this.volumeKg,
+    required this.diffPercent,
+    super.key,
+    this.sparkline = const [],
+    this.stats = const [],
+  });
   final String label;
   final double volumeKg;
   final double diffPercent;
@@ -23,15 +31,6 @@ class VolumeHeroCard extends StatelessWidget {
   /// Weekly volume series, oldest → newest. Drives the sparkline.
   final List<double> sparkline;
   final List<HeroStat> stats;
-
-  const VolumeHeroCard({
-    super.key,
-    required this.label,
-    required this.volumeKg,
-    required this.diffPercent,
-    this.sparkline = const [],
-    this.stats = const [],
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -75,8 +74,10 @@ class VolumeHeroCard extends StatelessWidget {
               ),
               if (hasTrend)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: trendColor.withAlpha(22),
                     borderRadius: BorderRadius.circular(AppRadius.full),
@@ -121,8 +122,9 @@ class VolumeHeroCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
                   Units.label,
-                  style: theme.textTheme.labelMedium
-                      ?.copyWith(color: AppColors.accent),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: AppColors.accent,
+                  ),
                 ),
               ),
             ],
@@ -136,8 +138,9 @@ class VolumeHeroCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.only(top: 16),
               decoration: const BoxDecoration(
-                border:
-                    Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+                border: Border(
+                  top: BorderSide(color: AppColors.border, width: 0.5),
+                ),
               ),
               child: Row(
                 children: [
@@ -152,7 +155,7 @@ class VolumeHeroCard extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               color: stats[i].color ?? AppColors.textPrimary,
                               fontFeatures: const [
-                                FontFeature.tabularFigures()
+                                FontFeature.tabularFigures(),
                               ],
                             ),
                           ),
@@ -169,7 +172,10 @@ class VolumeHeroCard extends StatelessWidget {
                     ),
                     if (i < stats.length - 1)
                       Container(
-                          width: 0.5, height: 28, color: AppColors.border),
+                        width: 0.5,
+                        height: 28,
+                        color: AppColors.border,
+                      ),
                   ],
                 ],
               ),
@@ -189,8 +195,8 @@ class VolumeHeroCard extends StatelessWidget {
 }
 
 class _Sparkline extends StatelessWidget {
-  final List<double> values;
   const _Sparkline({required this.values});
+  final List<double> values;
 
   @override
   Widget build(BuildContext context) {
@@ -220,10 +226,8 @@ class _Sparkline extends StatelessWidget {
             barWidth: 2.5,
             isStrokeCapRound: true,
             dotData: FlDotData(
-              show: true,
               checkToShowDot: (spot, bar) => spot.x == values.length - 1,
-              getDotPainter: (spot, percent, bar, index) =>
-                  FlDotCirclePainter(
+              getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
                 radius: 3.5,
                 color: AppColors.primary,
                 strokeWidth: 2,

@@ -12,7 +12,8 @@ enum MuscleGroup {
   core,
   fullBody,
   cardio,
-  other;
+  other
+  ;
 
   String get displayName {
     switch (this) {
@@ -51,7 +52,8 @@ enum Equipment {
   bodyweight,
   kettlebell,
   band,
-  other;
+  other
+  ;
 
   String get displayName {
     switch (this) {
@@ -78,53 +80,17 @@ enum Equipment {
 /// Represents an exercise definition (template)
 @immutable
 class Exercise {
-  final String id;
-  final String name;
-  final MuscleGroup primaryMuscle;
-  final MuscleGroup? secondaryMuscle;
-  final Equipment equipment;
-  final String? notes;
-  final bool isCustom;
-
-  /// Ids of exercises that can substitute for this one when the required
-  /// machine/setup isn't available (e.g. Jeff Nippard's per-exercise
-  /// alternatives). Resolve against the exercise library by id.
-  final List<String> alternativeIds;
-
-  /// Optional demo/tutorial video link (usually YouTube). When absent, the UI
-  /// falls back to a YouTube search for the exercise name.
-  final String? videoUrl;
-
   const Exercise({
     required this.id,
     required this.name,
     required this.primaryMuscle,
-    this.secondaryMuscle,
     required this.equipment,
+    this.secondaryMuscle,
     this.notes,
     this.isCustom = false,
     this.alternativeIds = const [],
     this.videoUrl,
   });
-
-  bool get hasAlternatives => alternativeIds.isNotEmpty;
-
-  /// True when the user pinned a specific video (vs. relying on search).
-  bool get hasVideo => videoUrl != null && videoUrl!.trim().isNotEmpty;
-
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'primaryMuscle': primaryMuscle.name,
-      'secondaryMuscle': secondaryMuscle?.name,
-      'equipment': equipment.name,
-      'notes': notes,
-      'isCustom': isCustom,
-      'alternativeIds': alternativeIds,
-      'videoUrl': videoUrl,
-    };
-  }
 
   factory Exercise.fromMap(Map<String, dynamic> map) {
     return Exercise(
@@ -146,12 +112,46 @@ class Exercise {
       ),
       notes: map['notes'] as String?,
       isCustom: map['isCustom'] as bool? ?? false,
-      alternativeIds: (map['alternativeIds'] as List?)
-              ?.map((e) => e as String)
-              .toList() ??
+      alternativeIds:
+          (map['alternativeIds'] as List?)?.map((e) => e as String).toList() ??
           const [],
       videoUrl: map['videoUrl'] as String?,
     );
+  }
+  final String id;
+  final String name;
+  final MuscleGroup primaryMuscle;
+  final MuscleGroup? secondaryMuscle;
+  final Equipment equipment;
+  final String? notes;
+  final bool isCustom;
+
+  /// Ids of exercises that can substitute for this one when the required
+  /// machine/setup isn't available (e.g. Jeff Nippard's per-exercise
+  /// alternatives). Resolve against the exercise library by id.
+  final List<String> alternativeIds;
+
+  /// Optional demo/tutorial video link (usually YouTube). When absent, the UI
+  /// falls back to a YouTube search for the exercise name.
+  final String? videoUrl;
+
+  bool get hasAlternatives => alternativeIds.isNotEmpty;
+
+  /// True when the user pinned a specific video (vs. relying on search).
+  bool get hasVideo => videoUrl != null && videoUrl!.trim().isNotEmpty;
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'primaryMuscle': primaryMuscle.name,
+      'secondaryMuscle': secondaryMuscle?.name,
+      'equipment': equipment.name,
+      'notes': notes,
+      'isCustom': isCustom,
+      'alternativeIds': alternativeIds,
+      'videoUrl': videoUrl,
+    };
   }
 
   Exercise copyWith({

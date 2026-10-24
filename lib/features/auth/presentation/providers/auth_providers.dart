@@ -1,12 +1,13 @@
 import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:strivo/core/services/credential_store.dart';
 import 'package:strivo/core/services/firestore_sync_service.dart';
-import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
-import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
+import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
+import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 
 /// Holds the live auth state and exposes it synchronously for the router.
 ///
@@ -37,7 +38,7 @@ class AuthStateNotifier extends ChangeNotifier {
       // to silently re-authenticate from securely-stored credentials before
       // deciding the user is logged out.
       _bootstrapping = true;
-      _attemptSilentReauth();
+      unawaited(_attemptSilentReauth());
     }
   }
 
@@ -63,7 +64,7 @@ class AuthStateNotifier extends ChangeNotifier {
         );
         // authStateChanges() above fires with the restored user.
       }
-    } catch (_) {
+    } on Object catch (_) {
       // Credentials are stale/invalid — forget them and fall back to login.
       await CredentialStore.clear();
     } finally {
@@ -76,7 +77,7 @@ class AuthStateNotifier extends ChangeNotifier {
 
   @override
   void dispose() {
-    _sub.cancel();
+    unawaited(_sub.cancel());
     super.dispose();
   }
 }
@@ -94,10 +95,10 @@ final currentUserProvider = StreamProvider<User?>((ref) {
 
 /// Result of an auth action — either success or a friendly error message.
 class AuthResult {
-  final bool success;
-  final String? error;
   const AuthResult.ok() : success = true, error = null;
   const AuthResult.fail(this.error) : success = false;
+  final bool success;
+  final String? error;
 }
 
 final authControllerProvider = Provider<AuthController>((ref) {
@@ -124,7 +125,7 @@ class AuthController {
       return const AuthResult.ok();
     } on FirebaseAuthException catch (e) {
       return AuthResult.fail(_message(e.code));
-    } catch (_) {
+    } on Object catch (_) {
       return const AuthResult.fail('Something went wrong. Please try again.');
     }
   }
@@ -155,7 +156,7 @@ class AuthController {
       return const AuthResult.ok();
     } on FirebaseAuthException catch (e) {
       return AuthResult.fail(_message(e.code));
-    } catch (_) {
+    } on Object catch (_) {
       return const AuthResult.fail('Something went wrong. Please try again.');
     }
   }
@@ -166,7 +167,7 @@ class AuthController {
       return const AuthResult.ok();
     } on FirebaseAuthException catch (e) {
       return AuthResult.fail(_message(e.code));
-    } catch (_) {
+    } on Object catch (_) {
       return const AuthResult.fail('Could not send reset email.');
     }
   }

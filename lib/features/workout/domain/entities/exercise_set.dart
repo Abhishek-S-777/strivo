@@ -4,15 +4,6 @@ import 'package:strivo/core/utils/id_generator.dart';
 /// Represents a single set within an exercise
 @immutable
 class ExerciseSet {
-  final String id;
-  final int setNumber;
-  final double weight;
-  final int reps;
-  final double? rpe;
-  final bool isCompleted;
-  final bool isWarmup;
-  final bool isPR;
-
   const ExerciseSet({
     required this.id,
     required this.setNumber,
@@ -42,6 +33,27 @@ class ExerciseSet {
       rpe: previous.rpe,
     );
   }
+
+  factory ExerciseSet.fromMap(Map<String, dynamic> map) {
+    return ExerciseSet(
+      id: map['id'] as String,
+      setNumber: (map['setNumber'] as num).toInt(),
+      weight: (map['weight'] as num).toDouble(),
+      reps: (map['reps'] as num).toInt(),
+      rpe: (map['rpe'] as num?)?.toDouble(),
+      isCompleted: map['isCompleted'] as bool? ?? false,
+      isWarmup: map['isWarmup'] as bool? ?? false,
+      isPR: map['isPR'] as bool? ?? false,
+    );
+  }
+  final String id;
+  final int setNumber;
+  final double weight;
+  final int reps;
+  final double? rpe;
+  final bool isCompleted;
+  final bool isWarmup;
+  final bool isPR;
 
   double get volume => weight * reps;
 
@@ -78,19 +90,6 @@ class ExerciseSet {
       'isWarmup': isWarmup,
       'isPR': isPR,
     };
-  }
-
-  factory ExerciseSet.fromMap(Map<String, dynamic> map) {
-    return ExerciseSet(
-      id: map['id'] as String,
-      setNumber: (map['setNumber'] as num).toInt(),
-      weight: (map['weight'] as num).toDouble(),
-      reps: (map['reps'] as num).toInt(),
-      rpe: (map['rpe'] as num?)?.toDouble(),
-      isCompleted: map['isCompleted'] as bool? ?? false,
-      isWarmup: map['isWarmup'] as bool? ?? false,
-      isPR: map['isPR'] as bool? ?? false,
-    );
   }
 
   @override

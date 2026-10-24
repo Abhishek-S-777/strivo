@@ -1,30 +1,28 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/analytics/presentation/providers/analytics_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
 
 class ExerciseHistoryScreen extends ConsumerStatefulWidget {
-  final String exerciseId;
-  final String exerciseName;
-
   const ExerciseHistoryScreen({
-    super.key,
     required this.exerciseId,
     required this.exerciseName,
+    super.key,
   });
+  final String exerciseId;
+  final String exerciseName;
 
   @override
   ConsumerState<ExerciseHistoryScreen> createState() =>
       _ExerciseHistoryScreenState();
 }
 
-class _ExerciseHistoryScreenState
-    extends ConsumerState<ExerciseHistoryScreen>
+class _ExerciseHistoryScreenState extends ConsumerState<ExerciseHistoryScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   bool _showVolume = false;
@@ -43,8 +41,7 @@ class _ExerciseHistoryScreenState
 
   @override
   Widget build(BuildContext context) {
-    final progress =
-        ref.watch(exerciseProgressProvider(widget.exerciseId));
+    final progress = ref.watch(exerciseProgressProvider(widget.exerciseId));
     ref.watch(weightUnitProvider); // rebuild on kg/lbs change
 
     return Scaffold(
@@ -83,15 +80,14 @@ class _ExerciseHistoryScreenState
 
 // ── Chart View ──
 class _ChartView extends StatelessWidget {
-  final ExerciseProgressData progress;
-  final bool showVolume;
-  final VoidCallback onToggle;
-
   const _ChartView({
     required this.progress,
     required this.showVolume,
     required this.onToggle,
   });
+  final ExerciseProgressData progress;
+  final bool showVolume;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -100,15 +96,17 @@ class _ChartView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.barChart3,
-                size: 48, color: AppColors.textTertiary),
+            const Icon(
+              LucideIcons.barChart3,
+              size: 48,
+              color: AppColors.textTertiary,
+            ),
             const SizedBox(height: 16),
             Text(
               'No data yet',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ],
         ),
@@ -164,7 +162,9 @@ class _ChartView extends StatelessWidget {
                 onTap: onToggle,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 6),
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceLight,
                     borderRadius: BorderRadius.circular(8),
@@ -173,9 +173,9 @@ class _ChartView extends StatelessWidget {
                   child: Text(
                     showVolume ? 'Show Weight' : 'Show Volume',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -193,18 +193,15 @@ class _ChartView extends StatelessWidget {
                 child: LineChart(
                   LineChartData(
                     gridData: FlGridData(
-                      show: true,
                       drawVerticalLine: false,
-                      getDrawingHorizontalLine: (value) => FlLine(
+                      getDrawingHorizontalLine: (value) => const FlLine(
                         color: AppColors.chartGrid,
                         strokeWidth: 0.5,
                       ),
                     ),
                     titlesData: FlTitlesData(
-                      topTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
-                      rightTitles: const AxisTitles(
-                          sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(),
+                      rightTitles: const AxisTitles(),
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
@@ -215,8 +212,9 @@ class _ChartView extends StatelessWidget {
                                   ? '${value.toInt()}'
                                   : '${value.toInt()}',
                               style: const TextStyle(
-                                  fontSize: 10,
-                                  color: AppColors.textTertiary),
+                                fontSize: 10,
+                                color: AppColors.textTertiary,
+                              ),
                             );
                           },
                         ),
@@ -226,8 +224,7 @@ class _ChartView extends StatelessWidget {
                           showTitles: true,
                           reservedSize: 30,
                           interval: progress.dataPoints.length > 8
-                              ? (progress.dataPoints.length / 4)
-                                  .ceilToDouble()
+                              ? (progress.dataPoints.length / 4).ceilToDouble()
                               : 1,
                           getTitlesWidget: (value, meta) {
                             final index = value.toInt();
@@ -236,11 +233,13 @@ class _ChartView extends StatelessWidget {
                               return const SizedBox.shrink();
                             }
                             return Text(
-                              DateFormat('M/d').format(
-                                  progress.dataPoints[index].date),
+                              DateFormat(
+                                'M/d',
+                              ).format(progress.dataPoints[index].date),
                               style: const TextStyle(
-                                  fontSize: 9,
-                                  color: AppColors.textTertiary),
+                                fontSize: 9,
+                                color: AppColors.textTertiary,
+                              ),
                             );
                           },
                         ),
@@ -252,12 +251,16 @@ class _ChartView extends StatelessWidget {
                         spots: progress.dataPoints
                             .asMap()
                             .entries
-                            .map((e) => FlSpot(
-                                  e.key.toDouble(),
-                                  Units.fromKg(showVolume
+                            .map(
+                              (e) => FlSpot(
+                                e.key.toDouble(),
+                                Units.fromKg(
+                                  showVolume
                                       ? e.value.totalVolume
-                                      : e.value.maxWeight),
-                                ))
+                                      : e.value.maxWeight,
+                                ),
+                              ),
+                            )
                             .toList(),
                         isCurved: true,
                         color: showVolume
@@ -280,10 +283,11 @@ class _ChartView extends StatelessWidget {
                         ),
                         belowBarData: BarAreaData(
                           show: true,
-                          color: (showVolume
-                                  ? AppColors.chartVolume
-                                  : AppColors.chartLine)
-                              .withAlpha(25),
+                          color:
+                              (showVolume
+                                      ? AppColors.chartVolume
+                                      : AppColors.chartLine)
+                                  .withAlpha(25),
                         ),
                       ),
                     ],
@@ -293,8 +297,7 @@ class _ChartView extends StatelessWidget {
                             AppColors.surfaceElevated,
                         getTooltipItems: (touchedSpots) {
                           return touchedSpots.map((spot) {
-                            final point =
-                                progress.dataPoints[spot.x.toInt()];
+                            final point = progress.dataPoints[spot.x.toInt()];
                             return LineTooltipItem(
                               '${showVolume ? Units.volumeValue(point.totalVolume) : Units.weight(point.maxWeight)} ${Units.label}${showVolume ? ' vol' : ''}\n${DateFormat('MMM d').format(point.date)}',
                               const TextStyle(
@@ -319,17 +322,16 @@ class _ChartView extends StatelessWidget {
 }
 
 class _ProgressStatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool highlight;
-
   const _ProgressStatCard({
     required this.label,
     required this.value,
     required this.icon,
     this.highlight = false,
   });
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -339,25 +341,24 @@ class _ProgressStatCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon,
-                size: 16,
-                color: highlight ? AppColors.pr : AppColors.primary),
+            Icon(
+              icon,
+              size: 16,
+              color: highlight ? AppColors.pr : AppColors.primary,
+            ),
             const SizedBox(height: 8),
             Text(
               value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: highlight
-                        ? AppColors.pr
-                        : AppColors.textPrimary,
-                  ),
+                fontWeight: FontWeight.w700,
+                color: highlight ? AppColors.pr : AppColors.textPrimary,
+              ),
             ),
             Text(
               label,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ),
@@ -368,9 +369,8 @@ class _ProgressStatCard extends StatelessWidget {
 
 // ── History Table View ──
 class _HistoryTableView extends StatelessWidget {
-  final ExerciseProgressData progress;
-
   const _HistoryTableView({required this.progress});
+  final ExerciseProgressData progress;
 
   @override
   Widget build(BuildContext context) {
@@ -378,10 +378,9 @@ class _HistoryTableView extends StatelessWidget {
       return Center(
         child: Text(
           'No history data',
-          style: Theme.of(context)
-              .textTheme
-              .bodyMedium
-              ?.copyWith(color: AppColors.textTertiary),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: AppColors.textTertiary),
         ),
       );
     }
@@ -405,57 +404,67 @@ class _HistoryTableView extends StatelessWidget {
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Text('DATE',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textTertiary,
-                          letterSpacing: 0.5,
-                        )),
+                    child: Text(
+                      'DATE',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textTertiary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text('WEIGHT',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textTertiary,
-                          letterSpacing: 0.5,
-                        )),
+                    child: Text(
+                      'WEIGHT',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textTertiary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text('VOLUME',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textTertiary,
-                          letterSpacing: 0.5,
-                        )),
+                    child: Text(
+                      'VOLUME',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textTertiary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text('SETS×REPS',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textTertiary,
-                          letterSpacing: 0.5,
-                        )),
+                    child: Text(
+                      'SETS×REPS',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textTertiary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                   Expanded(
                     flex: 2,
-                    child: Text('CHANGE',
-                        textAlign: TextAlign.end,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textTertiary,
-                          letterSpacing: 0.5,
-                        )),
+                    child: Text(
+                      'CHANGE',
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textTertiary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -465,20 +474,22 @@ class _HistoryTableView extends StatelessWidget {
             ...reversed.asMap().entries.map((entry) {
               final index = entry.key;
               final point = entry.value;
-              final prevPoint =
-                  index < reversed.length - 1 ? reversed[index + 1] : null;
+              final prevPoint = index < reversed.length - 1
+                  ? reversed[index + 1]
+                  : null;
               final weightDiff = prevPoint != null
                   ? point.maxWeight - prevPoint.maxWeight
                   : 0.0;
 
               return Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: index < reversed.length - 1
-                        ? const BorderSide(
-                            color: AppColors.border, width: 0.5)
+                        ? const BorderSide(color: AppColors.border, width: 0.5)
                         : BorderSide.none,
                   ),
                 ),
@@ -496,10 +507,9 @@ class _HistoryTableView extends StatelessWidget {
                       child: Text(
                         Units.weightLabel(point.maxWeight),
                         textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                     Expanded(
@@ -535,9 +545,7 @@ class _HistoryTableView extends StatelessWidget {
                           : Text(
                               '—',
                               textAlign: TextAlign.end,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(color: AppColors.textTertiary),
                             ),
                     ),

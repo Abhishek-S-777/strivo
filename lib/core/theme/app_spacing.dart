@@ -35,32 +35,32 @@ class AppDecorations {
   AppDecorations._();
 
   static BoxDecoration get card => BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      );
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(AppRadius.lg),
+    border: Border.all(color: AppColors.border, width: 0.5),
+  );
 
   static BoxDecoration get cardElevated => BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border, width: 0.5),
-      );
+    color: AppColors.surfaceLight,
+    borderRadius: BorderRadius.circular(AppRadius.lg),
+    border: Border.all(color: AppColors.border, width: 0.5),
+  );
 
   static BoxDecoration get inputField => BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
-      );
+    color: AppColors.surfaceLight,
+    borderRadius: BorderRadius.circular(AppRadius.md),
+    border: Border.all(color: AppColors.border),
+  );
 
   static BoxDecoration get chip => BoxDecoration(
-        color: AppColors.surfaceLight,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.border),
-      );
+    color: AppColors.surfaceLight,
+    borderRadius: BorderRadius.circular(AppRadius.sm),
+    border: Border.all(color: AppColors.border),
+  );
 
   static BoxDecoration get activeChip => BoxDecoration(
-        color: AppColors.primary.withAlpha(20),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.primary.withAlpha(60)),
-      );
+    color: AppColors.primary.withAlpha(20),
+    borderRadius: BorderRadius.circular(AppRadius.sm),
+    border: Border.all(color: AppColors.primary.withAlpha(60)),
+  );
 }

@@ -40,7 +40,7 @@ class RestTimerWidget extends ConsumerWidget {
                         : AppColors.primary,
                   ),
                 ),
-                Center(
+                const Center(
                   child: Icon(
                     LucideIcons.timer,
                     size: 16,
@@ -58,18 +58,18 @@ class RestTimerWidget extends ConsumerWidget {
                 Text(
                   'Rest Timer',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textTertiary,
-                      ),
+                    color: AppColors.textTertiary,
+                  ),
                 ),
                 Text(
                   timer.displayTime,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        color: timer.remainingSeconds <= 10
-                            ? AppColors.error
-                            : AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: [const FontFeature.tabularFigures()],
-                      ),
+                    color: timer.remainingSeconds <= 10
+                        ? AppColors.error
+                        : AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [const FontFeature.tabularFigures()],
+                  ),
                 ),
               ],
             ),
@@ -86,9 +86,9 @@ class RestTimerWidget extends ConsumerWidget {
               child: Text(
                 '+30s',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -102,7 +102,11 @@ class RestTimerWidget extends ConsumerWidget {
                 color: AppColors.error.withAlpha(20),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(LucideIcons.x, size: 16, color: AppColors.error),
+              child: const Icon(
+                LucideIcons.x,
+                size: 16,
+                color: AppColors.error,
+              ),
             ),
           ),
         ],

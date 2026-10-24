@@ -1,21 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/utils/id_generator.dart';
+import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/features/workout/presentation/widgets/exercise_picker_sheet.dart';
-import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
 
 class RoutineBuilderScreen extends ConsumerStatefulWidget {
-  final String? routineId;
-
   const RoutineBuilderScreen({super.key, this.routineId});
+  final String? routineId;
 
   @override
   ConsumerState<RoutineBuilderScreen> createState() =>
@@ -109,10 +110,9 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
                       ),
                       Text(
                         '${_exercises.length} exercises',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -128,19 +128,19 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                         border: Border.all(
                           color: AppColors.border,
-                          style: BorderStyle.solid,
                         ),
                       ),
                       child: Column(
                         children: [
-                          Icon(LucideIcons.listPlus,
-                              size: 32, color: AppColors.textTertiary),
+                          const Icon(
+                            LucideIcons.listPlus,
+                            size: 32,
+                            color: AppColors.textTertiary,
+                          ),
                           const SizedBox(height: 12),
                           Text(
                             'Add exercises to your routine',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(color: AppColors.textTertiary),
                           ),
                         ],
@@ -176,14 +176,12 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
                           routineExercise: re,
                           onSetsChanged: (sets) {
                             setState(() {
-                              _exercises[index] =
-                                  re.copyWith(targetSets: sets);
+                              _exercises[index] = re.copyWith(targetSets: sets);
                             });
                           },
                           onRepsChanged: (reps) {
                             setState(() {
-                              _exercises[index] =
-                                  re.copyWith(targetReps: reps);
+                              _exercises[index] = re.copyWith(targetReps: reps);
                             });
                           },
                           onEditVideo: () => _editVideo(index),
@@ -217,23 +215,27 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
   }
 
   void _addExercise() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => ExercisePickerSheet(
-        onExerciseSelected: (exercise) {
-          setState(() {
-            _exercises.add(RoutineExercise(
-              id: IdGenerator.generate(),
-              exercise: exercise,
-              targetSets: 3,
-              targetReps: 10,
-              order: _exercises.length,
-            ));
-          });
-          Navigator.pop(context);
-        },
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => ExercisePickerSheet(
+          onExerciseSelected: (exercise) {
+            setState(() {
+              _exercises.add(
+                RoutineExercise(
+                  id: IdGenerator.generate(),
+                  exercise: exercise,
+                  targetSets: 3,
+                  targetReps: 10,
+                  order: _exercises.length,
+                ),
+              );
+            });
+            Navigator.pop(context);
+          },
+        ),
       ),
     );
   }
@@ -241,24 +243,23 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
   /// Rebuild an exercise with a new (nullable) video URL. Uses the constructor
   /// rather than copyWith so a null actually *clears* the link.
   Exercise _withVideo(Exercise e, String? url) => Exercise(
-        id: e.id,
-        name: e.name,
-        primaryMuscle: e.primaryMuscle,
-        secondaryMuscle: e.secondaryMuscle,
-        equipment: e.equipment,
-        notes: e.notes,
-        isCustom: e.isCustom,
-        alternativeIds: e.alternativeIds,
-        videoUrl: url,
-      );
+    id: e.id,
+    name: e.name,
+    primaryMuscle: e.primaryMuscle,
+    secondaryMuscle: e.secondaryMuscle,
+    equipment: e.equipment,
+    notes: e.notes,
+    isCustom: e.isCustom,
+    alternativeIds: e.alternativeIds,
+    videoUrl: url,
+  );
 
   /// Attach / edit / clear a tutorial video link for a routine exercise. The
   /// link is saved both on the routine and back to the exercise library so it
   /// shows up everywhere the exercise appears.
   Future<void> _editVideo(int index) async {
     final re = _exercises[index];
-    final controller =
-        TextEditingController(text: re.exercise.videoUrl ?? '');
+    final controller = TextEditingController(text: re.exercise.videoUrl ?? '');
     final hadVideo = re.exercise.hasVideo;
 
     final result = await showDialog<String>(
@@ -281,10 +282,9 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
             const SizedBox(height: 8),
             Text(
               'Leave empty to use an automatic YouTube search when you tap "watch" during a workout.',
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: AppColors.textTertiary),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: AppColors.textTertiary),
             ),
           ],
         ),
@@ -311,7 +311,7 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
     final updated = _withVideo(re.exercise, result.isEmpty ? null : result);
     setState(() => _exercises[index] = re.copyWith(exercise: updated));
     // Persist to the library too (and cloud-sync custom exercises).
-    ref.read(exerciseLibraryProvider.notifier).addExercise(updated);
+    unawaited(ref.read(exerciseLibraryProvider.notifier).addExercise(updated));
   }
 
   void _saveRoutine() {
@@ -345,26 +345,25 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
       );
     }
 
-    ref.read(routinesProvider.notifier).saveRoutine(routine);
+    unawaited(ref.read(routinesProvider.notifier).saveRoutine(routine));
     context.pop();
   }
 }
 
 class _RoutineExerciseItem extends StatelessWidget {
-  final RoutineExercise routineExercise;
-  final Function(int) onSetsChanged;
-  final Function(int) onRepsChanged;
-  final VoidCallback onEditVideo;
-  final VoidCallback onRemove;
-
   const _RoutineExerciseItem({
-    super.key,
     required this.routineExercise,
     required this.onSetsChanged,
     required this.onRepsChanged,
     required this.onEditVideo,
     required this.onRemove,
+    super.key,
   });
+  final RoutineExercise routineExercise;
+  final void Function(int) onSetsChanged;
+  final void Function(int) onRepsChanged;
+  final VoidCallback onEditVideo;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -379,8 +378,11 @@ class _RoutineExerciseItem extends StatelessWidget {
       child: Row(
         children: [
           // Drag handle
-          Icon(LucideIcons.gripVertical,
-              size: 18, color: AppColors.textTertiary),
+          const Icon(
+            LucideIcons.gripVertical,
+            size: 18,
+            color: AppColors.textTertiary,
+          ),
           const SizedBox(width: 12),
 
           // Exercise info
@@ -399,10 +401,9 @@ class _RoutineExerciseItem extends StatelessWidget {
                       child: Text(
                         routineExercise.exercise.equipment.displayName,
                         overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -420,10 +421,9 @@ class _RoutineExerciseItem extends StatelessWidget {
           _CompactInput(
             label: 'Sets',
             value: routineExercise.targetSets,
-            onIncrement: () =>
-                onSetsChanged(routineExercise.targetSets + 1),
-            onDecrement: () => onSetsChanged(
-                (routineExercise.targetSets - 1).clamp(1, 20)),
+            onIncrement: () => onSetsChanged(routineExercise.targetSets + 1),
+            onDecrement: () =>
+                onSetsChanged((routineExercise.targetSets - 1).clamp(1, 20)),
           ),
           const SizedBox(width: 8),
 
@@ -431,18 +431,20 @@ class _RoutineExerciseItem extends StatelessWidget {
           _CompactInput(
             label: 'Reps',
             value: routineExercise.targetReps,
-            onIncrement: () =>
-                onRepsChanged(routineExercise.targetReps + 1),
-            onDecrement: () => onRepsChanged(
-                (routineExercise.targetReps - 1).clamp(1, 100)),
+            onIncrement: () => onRepsChanged(routineExercise.targetReps + 1),
+            onDecrement: () =>
+                onRepsChanged((routineExercise.targetReps - 1).clamp(1, 100)),
           ),
           const SizedBox(width: 8),
 
           // Remove
           GestureDetector(
             onTap: onRemove,
-            child: Icon(LucideIcons.x,
-                size: 18, color: AppColors.textTertiary),
+            child: const Icon(
+              LucideIcons.x,
+              size: 18,
+              color: AppColors.textTertiary,
+            ),
           ),
         ],
       ),
@@ -453,10 +455,9 @@ class _RoutineExerciseItem extends StatelessWidget {
 /// Tappable "video" affordance on a routine exercise row — the column where a
 /// tutorial link is attached. Highlights when a link is set.
 class _VideoChip extends StatelessWidget {
+  const _VideoChip({required this.hasVideo, required this.onTap});
   final bool hasVideo;
   final VoidCallback onTap;
-
-  const _VideoChip({required this.hasVideo, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -472,9 +473,9 @@ class _VideoChip extends StatelessWidget {
           Text(
             hasVideo ? 'Video' : 'Add video',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
@@ -483,17 +484,16 @@ class _VideoChip extends StatelessWidget {
 }
 
 class _CompactInput extends StatelessWidget {
-  final String label;
-  final int value;
-  final VoidCallback onIncrement;
-  final VoidCallback onDecrement;
-
   const _CompactInput({
     required this.label,
     required this.value,
     required this.onIncrement,
     required this.onDecrement,
   });
+  final String label;
+  final int value;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
 
   @override
   Widget build(BuildContext context) {
@@ -521,8 +521,11 @@ class _CompactInput extends StatelessWidget {
                 onTap: onDecrement,
                 child: const Padding(
                   padding: EdgeInsets.all(6),
-                  child: Icon(LucideIcons.minus,
-                      size: 12, color: AppColors.textTertiary),
+                  child: Icon(
+                    LucideIcons.minus,
+                    size: 12,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
               Padding(
@@ -540,8 +543,11 @@ class _CompactInput extends StatelessWidget {
                 onTap: onIncrement,
                 child: const Padding(
                   padding: EdgeInsets.all(6),
-                  child: Icon(LucideIcons.plus,
-                      size: 12, color: AppColors.textTertiary),
+                  child: Icon(
+                    LucideIcons.plus,
+                    size: 12,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
               ),
             ],

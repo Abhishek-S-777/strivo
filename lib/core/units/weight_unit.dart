@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:strivo/core/services/hive_service.dart';
 
@@ -21,8 +23,8 @@ class Units {
 
   static WeightUnit _loadInitial() =>
       HiveService.getSetting('weight_unit') == WeightUnit.lbs.name
-          ? WeightUnit.lbs
-          : WeightUnit.kg;
+      ? WeightUnit.lbs
+      : WeightUnit.kg;
 
   static bool get isLbs => unit == WeightUnit.lbs;
   static String get label => isLbs ? 'lbs' : 'kg';
@@ -53,10 +55,10 @@ class Units {
   static void setIncrementDisplay(double v) {
     if (isLbs) {
       _incLbs = v;
-      HiveService.saveSetting('inc_lbs', v.toString());
+      unawaited(HiveService.saveSetting('inc_lbs', v.toString()));
     } else {
       _incKg = v;
-      HiveService.saveSetting('inc_kg', v.toString());
+      unawaited(HiveService.saveSetting('inc_kg', v.toString()));
     }
   }
 
@@ -87,15 +89,15 @@ class Units {
 
 final weightUnitProvider =
     StateNotifierProvider<WeightUnitNotifier, WeightUnit>((ref) {
-  return WeightUnitNotifier();
-});
+      return WeightUnitNotifier();
+    });
 
 class WeightUnitNotifier extends StateNotifier<WeightUnit> {
   WeightUnitNotifier() : super(Units.unit);
 
   void setUnit(WeightUnit u) {
     Units.unit = u;
-    HiveService.saveSetting('weight_unit', u.name);
+    unawaited(HiveService.saveSetting('weight_unit', u.name));
     state = u;
   }
 }
@@ -104,8 +106,8 @@ class WeightUnitNotifier extends StateNotifier<WeightUnit> {
 /// formatted value from [Units] (single source of truth); this just signals.
 final weightIncrementProvider =
     StateNotifierProvider<WeightIncrementNotifier, double>((ref) {
-  return WeightIncrementNotifier();
-});
+      return WeightIncrementNotifier();
+    });
 
 class WeightIncrementNotifier extends StateNotifier<double> {
   WeightIncrementNotifier() : super(Units.stepDisplay);

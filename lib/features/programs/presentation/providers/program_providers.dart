@@ -1,13 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/services/firestore_sync_service.dart';
+import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 
 /// The id of the user's active program (device-local; programs themselves sync).
 final activeProgramIdProvider =
     StateNotifierProvider<ActiveProgramIdNotifier, String?>((ref) {
-  return ActiveProgramIdNotifier();
-});
+      return ActiveProgramIdNotifier();
+    });
 
 class ActiveProgramIdNotifier extends StateNotifier<String?> {
   ActiveProgramIdNotifier() : super(HiveService.getActiveProgramId());
@@ -18,10 +20,11 @@ class ActiveProgramIdNotifier extends StateNotifier<String?> {
   }
 }
 
-final programsProvider =
-    StateNotifierProvider<ProgramsNotifier, List<Program>>((ref) {
-  return ProgramsNotifier(ref);
-});
+final programsProvider = StateNotifierProvider<ProgramsNotifier, List<Program>>(
+  (ref) {
+    return ProgramsNotifier(ref);
+  },
+);
 
 class ProgramsNotifier extends StateNotifier<List<Program>> {
   ProgramsNotifier(this._ref) : super(HiveService.getAllPrograms());
@@ -30,7 +33,7 @@ class ProgramsNotifier extends StateNotifier<List<Program>> {
   Future<void> save(Program program) async {
     await HiveService.saveProgram(program);
     state = HiveService.getAllPrograms();
-    FirestoreSyncService.instance.syncProgram(program);
+    unawaited(FirestoreSyncService.instance.syncProgram(program));
   }
 
   Future<void> delete(String id) async {
@@ -39,7 +42,7 @@ class ProgramsNotifier extends StateNotifier<List<Program>> {
       await _ref.read(activeProgramIdProvider.notifier).set(null);
     }
     state = HiveService.getAllPrograms();
-    FirestoreSyncService.instance.deleteProgram(id);
+    unawaited(FirestoreSyncService.instance.deleteProgram(id));
   }
 
   void refresh() => state = HiveService.getAllPrograms();

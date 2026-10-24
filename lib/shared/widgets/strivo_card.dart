@@ -3,18 +3,17 @@ import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 
 class StrivoCard extends StatelessWidget {
-  final Widget child;
-  final Color? color;
-  final EdgeInsetsGeometry? padding;
-  final VoidCallback? onTap;
-
   const StrivoCard({
-    super.key,
     required this.child,
+    super.key,
     this.color,
     this.padding,
     this.onTap,
   });
+  final Widget child;
+  final Color? color;
+  final EdgeInsetsGeometry? padding;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

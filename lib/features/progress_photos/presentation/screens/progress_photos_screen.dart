@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/features/progress_photos/domain/entities/progress_photo.dart';
@@ -37,7 +39,9 @@ class ProgressPhotosScreen extends ConsumerWidget {
                       label: const Text('Add'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
+                          horizontal: 16,
+                          vertical: 10,
+                        ),
                       ),
                     ),
                   ],
@@ -51,23 +55,23 @@ class ProgressPhotosScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(LucideIcons.camera,
-                          size: 56, color: AppColors.textTertiary),
+                      const Icon(
+                        LucideIcons.camera,
+                        size: 56,
+                        color: AppColors.textTertiary,
+                      ),
                       const SizedBox(height: 16),
                       Text(
                         'No progress photos',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
+                        style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Track your transformation over time',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
@@ -88,7 +92,10 @@ class ProgressPhotosScreen extends ConsumerWidget {
   }
 
   Widget _buildTimeline(
-      BuildContext context, WidgetRef ref, List<ProgressPhoto> photos) {
+    BuildContext context,
+    WidgetRef ref,
+    List<ProgressPhoto> photos,
+  ) {
     // Group photos by month
     final grouped = <String, List<ProgressPhoto>>{};
     for (final photo in photos) {
@@ -130,10 +137,9 @@ class ProgressPhotosScreen extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Text(
                         '${monthPhotos.length} photo${monthPhotos.length > 1 ? 's' : ''}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
                       ),
                     ],
                   ),
@@ -156,8 +162,7 @@ class ProgressPhotosScreen extends ConsumerWidget {
                       photo: photo,
                       onTap: () =>
                           _showPhotoDetail(context, ref, photo, photos),
-                      onLongPress: () =>
-                          _showPhotoOptions(context, ref, photo),
+                      onLongPress: () => _showPhotoOptions(context, ref, photo),
                     );
                   },
                 ),
@@ -173,93 +178,114 @@ class ProgressPhotosScreen extends ConsumerWidget {
   }
 
   void _showAddPhotoSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Add Progress Photo',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _PhotoSourceButton(
-                    icon: LucideIcons.camera,
-                    label: 'Camera',
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      ref
-                          .read(progressPhotosProvider.notifier)
-                          .addPhoto(source: ImageSource.camera);
-                    },
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Add Progress Photo',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PhotoSourceButton(
+                      icon: LucideIcons.camera,
+                      label: 'Camera',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          ref
+                              .read(progressPhotosProvider.notifier)
+                              .addPhoto(source: ImageSource.camera),
+                        );
+                      },
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _PhotoSourceButton(
-                    icon: LucideIcons.image,
-                    label: 'Gallery',
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      ref
-                          .read(progressPhotosProvider.notifier)
-                          .addPhoto(source: ImageSource.gallery);
-                    },
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _PhotoSourceButton(
+                      icon: LucideIcons.image,
+                      label: 'Gallery',
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        unawaited(
+                          ref.read(progressPhotosProvider.notifier).addPhoto(),
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-          ],
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _showPhotoDetail(BuildContext context, WidgetRef ref,
-      ProgressPhoto photo, List<ProgressPhoto> allPhotos) {
+  void _showPhotoDetail(
+    BuildContext context,
+    WidgetRef ref,
+    ProgressPhoto photo,
+    List<ProgressPhoto> allPhotos,
+  ) {
     final index = allPhotos.indexOf(photo);
 
-    showDialog(
-      context: context,
-      barrierColor: Colors.black87,
-      builder: (ctx) => _PhotoDetailDialog(
-        photos: allPhotos,
-        initialIndex: index,
-        onDelete: (id) {
-          ref.read(progressPhotosProvider.notifier).deletePhoto(id);
-          Navigator.pop(ctx);
-        },
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierColor: Colors.black87,
+        builder: (ctx) => _PhotoDetailDialog(
+          photos: allPhotos,
+          initialIndex: index,
+          onDelete: (id) {
+            unawaited(
+              ref.read(progressPhotosProvider.notifier).deletePhoto(id),
+            );
+            Navigator.pop(ctx);
+          },
+        ),
       ),
     );
   }
 
   void _showPhotoOptions(
-      BuildContext context, WidgetRef ref, ProgressPhoto photo) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(LucideIcons.trash2, color: AppColors.error),
-              title: const Text('Delete Photo',
-                  style: TextStyle(color: AppColors.error)),
-              onTap: () {
-                Navigator.pop(ctx);
-                ref
-                    .read(progressPhotosProvider.notifier)
-                    .deletePhoto(photo.id);
-              },
-            ),
-          ],
+    BuildContext context,
+    WidgetRef ref,
+    ProgressPhoto photo,
+  ) {
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (ctx) => Container(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(LucideIcons.trash2, color: AppColors.error),
+                title: const Text(
+                  'Delete Photo',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  unawaited(
+                    ref
+                        .read(progressPhotosProvider.notifier)
+                        .deletePhoto(photo.id),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -268,15 +294,14 @@ class ProgressPhotosScreen extends ConsumerWidget {
 
 // ── Photo Thumbnail ──
 class _PhotoThumbnail extends StatelessWidget {
-  final ProgressPhoto photo;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-
   const _PhotoThumbnail({
     required this.photo,
     required this.onTap,
     required this.onLongPress,
   });
+  final ProgressPhoto photo;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -291,10 +316,12 @@ class _PhotoThumbnail extends StatelessWidget {
             Image.file(
               File(photo.imagePath),
               fit: BoxFit.cover,
-              errorBuilder: (_, e, st) => Container(
+              errorBuilder: (_, e, st) => const ColoredBox(
                 color: AppColors.surfaceLight,
-                child: const Icon(LucideIcons.imageOff,
-                    color: AppColors.textTertiary),
+                child: Icon(
+                  LucideIcons.imageOff,
+                  color: AppColors.textTertiary,
+                ),
               ),
             ),
             // Date overlay
@@ -303,8 +330,7 @@ class _PhotoThumbnail extends StatelessWidget {
               left: 0,
               right: 0,
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
@@ -331,8 +357,10 @@ class _PhotoThumbnail extends StatelessWidget {
                 top: 4,
                 right: 4,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withAlpha(200),
                     borderRadius: BorderRadius.circular(4),
@@ -356,15 +384,14 @@ class _PhotoThumbnail extends StatelessWidget {
 
 // ── Photo Source Button ──
 class _PhotoSourceButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
   const _PhotoSourceButton({
     required this.icon,
     required this.label,
     required this.onTap,
   });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -394,15 +421,14 @@ class _PhotoSourceButton extends StatelessWidget {
 
 // ── Photo Detail Dialog (Full screen viewer with swipe) ──
 class _PhotoDetailDialog extends StatefulWidget {
-  final List<ProgressPhoto> photos;
-  final int initialIndex;
-  final Function(String) onDelete;
-
   const _PhotoDetailDialog({
     required this.photos,
     required this.initialIndex,
     required this.onDelete,
   });
+  final List<ProgressPhoto> photos;
+  final int initialIndex;
+  final void Function(String) onDelete;
 
   @override
   State<_PhotoDetailDialog> createState() => _PhotoDetailDialogState();
@@ -466,15 +492,19 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     IconButton(
-                      icon: const Icon(LucideIcons.x,
-                          color: Colors.white, size: 22),
+                      icon: const Icon(
+                        LucideIcons.x,
+                        color: Colors.white,
+                        size: 22,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     Column(
                       children: [
                         Text(
-                          DateFormat('MMMM d, yyyy')
-                              .format(widget.photos[_currentIndex].date),
+                          DateFormat(
+                            'MMMM d, yyyy',
+                          ).format(widget.photos[_currentIndex].date),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -493,8 +523,11 @@ class _PhotoDetailDialogState extends State<_PhotoDetailDialog> {
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(LucideIcons.trash2,
-                          color: AppColors.error, size: 20),
+                      icon: const Icon(
+                        LucideIcons.trash2,
+                        color: AppColors.error,
+                        size: 20,
+                      ),
                       onPressed: () =>
                           widget.onDelete(widget.photos[_currentIndex].id),
                     ),

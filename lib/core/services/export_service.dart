@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
@@ -34,17 +35,14 @@ class ExportService {
         content = buildCsv(completed);
         filename = 'strivo_export_$stamp.csv';
         subject = 'Strivo workout data (CSV)';
-        break;
       case ExportFormat.json:
         content = buildJson(completed, now);
         filename = 'strivo_export_$stamp.json';
         subject = 'Strivo workout data (JSON)';
-        break;
       case ExportFormat.report:
         content = buildReport(completed, now);
         filename = 'strivo_report_$stamp.md';
         subject = 'Strivo training report';
-        break;
     }
 
     final dir = await getTemporaryDirectory();
@@ -75,27 +73,31 @@ class ExportService {
 
   String buildCsv(List<WorkoutSession> sessions) {
     final u = Units.label;
-    final b = StringBuffer();
-    b.writeln('Date,Workout,Exercise,Muscle,Equipment,Set,Weight($u),'
-        'Reps,RPE,Volume($u),PR,Warmup');
+    final b = StringBuffer()
+      ..writeln(
+        'Date,Workout,Exercise,Muscle,Equipment,Set,Weight($u),'
+        'Reps,RPE,Volume($u),PR,Warmup',
+      );
     final df = DateFormat('yyyy-MM-dd HH:mm');
     for (final s in sessions) {
       for (final we in s.exercises) {
         for (final set in we.sets.where((x) => x.isCompleted)) {
-          b.writeln([
-            df.format(s.startTime),
-            _csv(s.name),
-            _csv(we.exercise.name),
-            we.exercise.primaryMuscle.displayName,
-            we.exercise.equipment.displayName,
-            set.setNumber,
-            Units.fromKg(set.weight).toStringAsFixed(2),
-            set.reps,
-            set.rpe?.toString() ?? '',
-            Units.fromKg(set.volume).toStringAsFixed(2),
-            set.isPR ? 'yes' : '',
-            set.isWarmup ? 'yes' : '',
-          ].join(','));
+          b.writeln(
+            [
+              df.format(s.startTime),
+              _csv(s.name),
+              _csv(we.exercise.name),
+              we.exercise.primaryMuscle.displayName,
+              we.exercise.equipment.displayName,
+              set.setNumber,
+              Units.fromKg(set.weight).toStringAsFixed(2),
+              set.reps,
+              set.rpe?.toString() ?? '',
+              Units.fromKg(set.volume).toStringAsFixed(2),
+              if (set.isPR) 'yes' else '',
+              if (set.isWarmup) 'yes' else '',
+            ].join(','),
+          );
         }
       }
     }
@@ -126,11 +128,14 @@ class ExportService {
     final b = StringBuffer();
     final sum = _summary(sessions);
 
-    b.writeln('# Strivo Training Report');
-    b.writeln();
-    b.writeln('_Generated ${DateFormat('EEEE, MMM d, yyyy').format(now)} · '
-        'all weights in **$u**._');
-    b.writeln();
+    b
+      ..writeln('# Strivo Training Report')
+      ..writeln()
+      ..writeln(
+        '_Generated ${DateFormat('EEEE, MMM d, yyyy').format(now)} · '
+        'all weights in **$u**._',
+      )
+      ..writeln();
 
     if (sessions.isEmpty) {
       b.writeln('No completed workouts yet.');
@@ -138,41 +143,53 @@ class ExportService {
     }
 
     // Snapshot
-    b.writeln('## Snapshot');
-    b.writeln('- **Workouts logged:** ${sum['workouts']}');
-    b.writeln('- **Total volume lifted:** ${Units.volumeLabel(sum['totalVolumeKg'] as double)}');
-    b.writeln('- **Total working sets:** ${sum['totalSets']}');
-    b.writeln('- **Time under the bar:** ${sum['hoursTrained']}h');
-    b.writeln('- **Current weekly streak:** ${sum['streakWeeks']} week(s)');
-    b.writeln('- **Training span:** ${sum['firstDate']} → ${sum['lastDate']}');
-    b.writeln();
+    b
+      ..writeln('## Snapshot')
+      ..writeln('- **Workouts logged:** ${sum['workouts']}')
+      ..writeln(
+        '- **Total volume lifted:** ${Units.volumeLabel(sum['totalVolumeKg'] as double)}',
+      )
+      ..writeln('- **Total working sets:** ${sum['totalSets']}')
+      ..writeln('- **Time under the bar:** ${sum['hoursTrained']}h')
+      ..writeln('- **Current weekly streak:** ${sum['streakWeeks']} week(s)')
+      ..writeln('- **Training span:** ${sum['firstDate']} → ${sum['lastDate']}')
+      ..writeln();
 
     // This week vs last
     final wk = _weekCompare(sessions);
-    b.writeln('## This Week vs Last Week');
-    b.writeln('| Metric | This week | Last week |');
-    b.writeln('| --- | --- | --- |');
-    b.writeln('| Workouts | ${wk['thisCount']} | ${wk['lastCount']} |');
-    b.writeln('| Volume | ${Units.volumeLabel(wk['thisVol'] as double)} | '
-        '${Units.volumeLabel(wk['lastVol'] as double)} |');
+    b
+      ..writeln('## This Week vs Last Week')
+      ..writeln('| Metric | This week | Last week |')
+      ..writeln('| --- | --- | --- |')
+      ..writeln('| Workouts | ${wk['thisCount']} | ${wk['lastCount']} |')
+      ..writeln(
+        '| Volume | ${Units.volumeLabel(wk['thisVol'] as double)} | '
+        '${Units.volumeLabel(wk['lastVol'] as double)} |',
+      );
     final dv = wk['volDeltaPct'] as double;
-    b.writeln('| Volume change | ${dv >= 0 ? '+' : ''}${dv.toStringAsFixed(1)}% | — |');
-    b.writeln();
+    b
+      ..writeln(
+        '| Volume change | ${dv >= 0 ? '+' : ''}${dv.toStringAsFixed(1)}% | — |',
+      )
+      ..writeln();
 
     // Top lifts (est 1RM + trend)
     final lifts = _liftBreakdown(sessions);
     if (lifts.isNotEmpty) {
-      b.writeln('## Key Lifts (estimated 1RM via Epley)');
-      b.writeln('| Exercise | Sessions | Best set | Est. 1RM | 4-wk change |');
-      b.writeln('| --- | --- | --- | --- | --- |');
+      b
+        ..writeln('## Key Lifts (estimated 1RM via Epley)')
+        ..writeln('| Exercise | Sessions | Best set | Est. 1RM | 4-wk change |')
+        ..writeln('| --- | --- | --- | --- | --- |');
       for (final l in lifts.take(15)) {
         final ch = l.changeKg;
         final chStr = l.sessions < 2
             ? '—'
             : '${ch >= 0 ? '+' : ''}${Units.weight(ch)} $u';
-        b.writeln('| ${l.name} | ${l.sessions} | '
-            '${Units.weight(l.bestWeightKg)} $u × ${l.bestReps} | '
-            '${Units.weight(l.est1rmKg)} $u | $chStr |');
+        b.writeln(
+          '| ${l.name} | ${l.sessions} | '
+          '${Units.weight(l.bestWeightKg)} $u × ${l.bestReps} | '
+          '${Units.weight(l.est1rmKg)} $u | $chStr |',
+        );
       }
       b.writeln();
     }
@@ -188,28 +205,35 @@ class ExportService {
     }
 
     // Recent sessions
-    b.writeln('## Recent Sessions');
-    b.writeln('| Date | Workout | Duration | Volume | Sets | PRs |');
-    b.writeln('| --- | --- | --- | --- | --- | --- |');
+    b
+      ..writeln('## Recent Sessions')
+      ..writeln('| Date | Workout | Duration | Volume | Sets | PRs |')
+      ..writeln('| --- | --- | --- | --- | --- | --- |');
     for (final s in sessions.take(12)) {
-      b.writeln('| ${DateFormat('MMM d').format(s.startTime)} | ${s.name} | '
-          '${s.durationFormatted} | ${Units.volumeLabel(s.totalVolume)} | '
-          '${s.totalCompletedSets} | ${s.prCount} |');
+      b.writeln(
+        '| ${DateFormat('MMM d').format(s.startTime)} | ${s.name} | '
+        '${s.durationFormatted} | ${Units.volumeLabel(s.totalVolume)} | '
+        '${s.totalCompletedSets} | ${s.prCount} |',
+      );
     }
-    b.writeln();
-
     // AI guidance
-    b.writeln('---');
-    b.writeln('### How to use this report');
-    b.writeln('This is a training summary from the Strivo app. Volume = '
+    b
+      ..writeln()
+      ..writeln('---')
+      ..writeln('### How to use this report')
+      ..writeln(
+        'This is a training summary from the Strivo app. Volume = '
         'weight × reps summed over completed working sets. Estimated 1RM uses '
-        'the Epley formula `weight × (1 + reps/30)`.');
-    b.writeln();
-    b.writeln('**Suggested prompt for an AI:** "Here is my recent gym training '
+        'the Epley formula `weight × (1 + reps/30)`.',
+      )
+      ..writeln()
+      ..writeln(
+        '**Suggested prompt for an AI:** "Here is my recent gym training '
         'data. Based on my volume trend, key-lift progression, muscle '
         'distribution and training frequency, suggest adjustments to my diet '
         '(calories/protein) and recovery (sleep, rest days, deloads) to keep '
-        'progressing. Flag any over/undertrained muscle groups."');
+        'progressing. Flag any over/undertrained muscle groups."',
+      );
 
     return b.toString();
   }
@@ -217,12 +241,9 @@ class ExportService {
   // ── Aggregation helpers ───────────────────────────────────────
 
   Map<String, dynamic> _summary(List<WorkoutSession> sessions) {
-    final totalVol =
-        sessions.fold(0.0, (sum, s) => sum + s.totalVolume);
-    final totalSets =
-        sessions.fold(0, (sum, s) => sum + s.totalCompletedSets);
-    final totalDur =
-        sessions.fold(Duration.zero, (sum, s) => sum + s.duration);
+    final totalVol = sessions.fold<double>(0, (sum, s) => sum + s.totalVolume);
+    final totalSets = sessions.fold(0, (sum, s) => sum + s.totalCompletedSets);
+    final totalDur = sessions.fold(Duration.zero, (sum, s) => sum + s.duration);
     final dates = sessions.map((s) => s.startTime).toList()..sort();
     final df = DateFormat('MMM d, yyyy');
     return {
@@ -247,7 +268,8 @@ class ExportService {
     final weeks = sessions.map((s) => _weekStart(s.startTime)).toSet().toList()
       ..sort((a, b) => b.compareTo(a));
     final current = _weekStart(DateTime.now());
-    final active = weeks.first == current ||
+    final active =
+        weeks.first == current ||
         weeks.first == current.subtract(const Duration(days: 7));
     if (!active) return 0;
     var streak = 0;
@@ -266,14 +288,18 @@ class ExportService {
   Map<String, dynamic> _weekCompare(List<WorkoutSession> sessions) {
     final thisStart = _weekStart(DateTime.now());
     final lastStart = thisStart.subtract(const Duration(days: 7));
-    final thisWk =
-        sessions.where((s) => !s.startTime.isBefore(thisStart)).toList();
-    final lastWk = sessions
-        .where((s) =>
-            !s.startTime.isBefore(lastStart) && s.startTime.isBefore(thisStart))
+    final thisWk = sessions
+        .where((s) => !s.startTime.isBefore(thisStart))
         .toList();
-    final thisVol = thisWk.fold(0.0, (a, s) => a + s.totalVolume);
-    final lastVol = lastWk.fold(0.0, (a, s) => a + s.totalVolume);
+    final lastWk = sessions
+        .where(
+          (s) =>
+              !s.startTime.isBefore(lastStart) &&
+              s.startTime.isBefore(thisStart),
+        )
+        .toList();
+    final thisVol = thisWk.fold<double>(0, (a, s) => a + s.totalVolume);
+    final lastVol = lastWk.fold<double>(0, (a, s) => a + s.totalVolume);
     return {
       'thisCount': thisWk.length,
       'lastCount': lastWk.length,
@@ -284,7 +310,8 @@ class ExportService {
   }
 
   List<MapEntry<String, double>> _muscleDistribution(
-      List<WorkoutSession> sessions) {
+    List<WorkoutSession> sessions,
+  ) {
     final thisStart = _weekStart(DateTime.now());
     final thisWk = sessions.where((s) => !s.startTime.isBefore(thisStart));
     final vol = <MuscleGroup, double>{};
@@ -297,10 +324,11 @@ class ExportService {
       }
     }
     if (total == 0) return [];
-    final entries = vol.entries
-        .map((e) => MapEntry(e.key.displayName, e.value / total * 100))
-        .toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+    final entries =
+        vol.entries
+            .map((e) => MapEntry(e.key.displayName, e.value / total * 100))
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
     return entries;
   }
 
@@ -323,9 +351,11 @@ class ExportService {
           }
         }
         names[we.exercise.id] = we.exercise.name;
-        data
-            .putIfAbsent(we.exercise.id, () => [])
-            .add((date: s.startTime, w: bw, reps: br));
+        data.putIfAbsent(we.exercise.id, () => []).add((
+          date: s.startTime,
+          w: bw,
+          reps: br,
+        ));
       }
     }
 
@@ -338,17 +368,18 @@ class ExportService {
           ? latest.w * (1 + latest.reps / 30)
           : latest.w;
       // 4-week change: latest max weight vs the max weight ~4 weeks ago
-      final older =
-          recs.where((r) => r.date.isBefore(fourWeeksAgo)).toList();
+      final older = recs.where((r) => r.date.isBefore(fourWeeksAgo)).toList();
       final base = older.isNotEmpty ? older.last.w : recs.first.w;
-      lifts.add(_Lift(
-        name: names[entry.key] ?? 'Exercise',
-        sessions: recs.length,
-        bestWeightKg: latest.w,
-        bestReps: latest.reps,
-        est1rmKg: est,
-        changeKg: latest.w - base,
-      ));
+      lifts.add(
+        _Lift(
+          name: names[entry.key] ?? 'Exercise',
+          sessions: recs.length,
+          bestWeightKg: latest.w,
+          bestReps: latest.reps,
+          est1rmKg: est,
+          changeKg: latest.w - base,
+        ),
+      );
     }
     lifts.sort((a, b) => b.est1rmKg.compareTo(a.est1rmKg));
     return lifts;
@@ -356,12 +387,6 @@ class ExportService {
 }
 
 class _Lift {
-  final String name;
-  final int sessions;
-  final double bestWeightKg;
-  final int bestReps;
-  final double est1rmKg;
-  final double changeKg;
   _Lift({
     required this.name,
     required this.sessions,
@@ -370,4 +395,10 @@ class _Lift {
     required this.est1rmKg,
     required this.changeKg,
   });
+  final String name;
+  final int sessions;
+  final double bestWeightKg;
+  final int bestReps;
+  final double est1rmKg;
+  final double changeKg;
 }

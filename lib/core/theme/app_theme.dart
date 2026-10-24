@@ -49,8 +49,14 @@ class AppTheme {
         unselectedItemColor: AppColors.textTertiary,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+        selectedLabelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       cardTheme: CardThemeData(
         color: AppColors.surface,
@@ -105,7 +111,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceLight,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.border),
@@ -215,7 +224,7 @@ class AppTheme {
         fontSize: 28,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
-        letterSpacing: -1.0,
+        letterSpacing: -1,
         height: 1.2,
       ),
       displaySmall: GoogleFonts.inter(
