@@ -1,13 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:strivo/core/services/hive_service.dart';
+import 'package:strivo/core/settings/settings_repository.dart';
 
 /// The user's preferred weight unit. All weights are STORED in kilograms;
 /// this only affects display and input.
 enum WeightUnit { kg, lbs }
 
 const double _lbsPerKg = 2.2046226218;
+
+/// Device-local settings store. Used statically here because [Units] is a
+/// synchronous mirror consumed without a [WidgetRef].
+const SettingsRepository _settings = SettingsRepositoryImpl();
 
 /// Synchronously-readable active unit + formatting helpers.
 ///
@@ -22,7 +26,7 @@ class Units {
   static WeightUnit unit = _loadInitial();
 
   static WeightUnit _loadInitial() =>
-      HiveService.getSetting('weight_unit') == WeightUnit.lbs.name
+      _settings.getString('weight_unit') == WeightUnit.lbs.name
       ? WeightUnit.lbs
       : WeightUnit.kg;
 
@@ -35,7 +39,7 @@ class Units {
   static double? _incLbs = _loadInc('inc_lbs');
 
   static double? _loadInc(String key) {
-    final v = HiveService.getSetting(key);
+    final v = _settings.getString(key);
     return v == null ? null : double.tryParse(v);
   }
 
@@ -55,10 +59,10 @@ class Units {
   static void setIncrementDisplay(double v) {
     if (isLbs) {
       _incLbs = v;
-      unawaited(HiveService.saveSetting('inc_lbs', v.toString()));
+      unawaited(_settings.setString('inc_lbs', v.toString()));
     } else {
       _incKg = v;
-      unawaited(HiveService.saveSetting('inc_kg', v.toString()));
+      unawaited(_settings.setString('inc_kg', v.toString()));
     }
   }
 
@@ -97,7 +101,7 @@ class WeightUnitNotifier extends StateNotifier<WeightUnit> {
 
   void setUnit(WeightUnit u) {
     Units.unit = u;
-    unawaited(HiveService.saveSetting('weight_unit', u.name));
+    unawaited(_settings.setString('weight_unit', u.name));
     state = u;
   }
 }
