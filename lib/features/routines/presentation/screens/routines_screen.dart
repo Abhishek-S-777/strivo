@@ -4,44 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:strivo/core/services/firestore_sync_service.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
+import 'package:strivo/features/routines/presentation/providers/routine_providers.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
-
-// ── Routines Provider ──
-final routinesProvider = StateNotifierProvider<RoutinesNotifier, List<Routine>>(
-  (ref) {
-    return RoutinesNotifier();
-  },
-);
-
-class RoutinesNotifier extends StateNotifier<List<Routine>> {
-  RoutinesNotifier() : super([]) {
-    state = HiveService.getAllRoutines();
-  }
-
-  Future<void> saveRoutine(Routine routine) async {
-    await HiveService.saveRoutine(routine);
-    state = HiveService.getAllRoutines();
-    unawaited(FirestoreSyncService.instance.syncRoutine(routine));
-  }
-
-  Future<void> deleteRoutine(String id) async {
-    await HiveService.deleteRoutine(id);
-    state = HiveService.getAllRoutines();
-    unawaited(FirestoreSyncService.instance.deleteRoutine(id));
-  }
-
-  void refresh() {
-    state = HiveService.getAllRoutines();
-  }
-}
 
 class RoutinesScreen extends ConsumerStatefulWidget {
   const RoutinesScreen({super.key});

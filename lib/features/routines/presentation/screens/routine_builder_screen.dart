@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/utils/id_generator.dart';
-import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
+import 'package:strivo/features/routines/data/routine_repository_impl.dart';
+import 'package:strivo/features/routines/presentation/providers/routine_providers.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
@@ -37,7 +37,9 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
 
     if (widget.routineId != null) {
       _isEditing = true;
-      final routine = HiveService.getRoutine(widget.routineId!);
+      final routine = ref
+          .read(routineRepositoryProvider)
+          .getById(widget.routineId!);
       if (routine != null) {
         _nameController.text = routine.name;
         _descriptionController.text = routine.description ?? '';
@@ -327,7 +329,9 @@ class _RoutineBuilderScreenState extends ConsumerState<RoutineBuilderScreen> {
     Routine routine;
 
     if (_isEditing) {
-      final existing = HiveService.getRoutine(widget.routineId!);
+      final existing = ref
+          .read(routineRepositoryProvider)
+          .getById(widget.routineId!);
       routine = existing!.copyWith(
         name: name,
         description: _descriptionController.text.trim(),

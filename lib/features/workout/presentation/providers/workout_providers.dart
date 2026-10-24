@@ -1,34 +1,38 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:strivo/core/logging/app_logger.dart';
-import 'package:strivo/core/services/firestore_sync_service.dart';
-import 'package:strivo/core/services/hive_service.dart';
+import 'package:strivo/core/settings/settings_repository.dart';
 import 'package:strivo/core/utils/id_generator.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
+import 'package:strivo/features/routines/data/routine_repository_impl.dart';
+import 'package:strivo/features/routines/domain/routine_repository.dart';
+import 'package:strivo/features/workout/data/exercise_repository_impl.dart';
+import 'package:strivo/features/workout/data/session_repository_impl.dart';
 import 'package:strivo/features/workout/domain/entities/exercise.dart';
 import 'package:strivo/features/workout/domain/entities/exercise_set.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
+import 'package:strivo/features/workout/domain/exercise_repository.dart';
+import 'package:strivo/features/workout/domain/session_repository.dart';
 
 // ── Default Rest Timer (user setting) ──
 final defaultRestSecondsProvider =
     StateNotifierProvider<DefaultRestNotifier, int>((ref) {
-      return DefaultRestNotifier();
+      return DefaultRestNotifier(ref.watch(settingsRepositoryProvider));
     });
 
 class DefaultRestNotifier extends StateNotifier<int> {
-  DefaultRestNotifier() : super(_load());
+  DefaultRestNotifier(this._settings)
+    : super(
+        int.tryParse(_settings.getString('default_rest_seconds') ?? '') ?? 90,
+      );
 
-  static int _load() =>
-      int.tryParse(HiveService.getSetting('default_rest_seconds') ?? '') ?? 90;
+  final SettingsRepository _settings;
 
   void setSeconds(int seconds) {
-    unawaited(
-      HiveService.saveSetting('default_rest_seconds', seconds.toString()),
-    );
+    unawaited(_settings.setString('default_rest_seconds', seconds.toString()));
     state = seconds;
   }
 }
@@ -36,40 +40,42 @@ class DefaultRestNotifier extends StateNotifier<int> {
 // ── Workout Sessions Provider ──
 final workoutSessionsProvider =
     StateNotifierProvider<WorkoutSessionsNotifier, List<WorkoutSession>>((ref) {
-      return WorkoutSessionsNotifier();
+      return WorkoutSessionsNotifier(ref.watch(sessionRepositoryProvider));
     });
 
 class WorkoutSessionsNotifier extends StateNotifier<List<WorkoutSession>> {
-  WorkoutSessionsNotifier() : super([]) {
+  WorkoutSessionsNotifier(this._repo) : super([]) {
     _loadSessions();
   }
 
+  final SessionRepository _repo;
+
   void _loadSessions() {
-    state = HiveService.getAllSessions();
+    state = _repo.getAll();
   }
 
   Future<void> saveSession(WorkoutSession session) async {
-    await HiveService.saveSession(session);
+    await _repo.save(session);
     _loadSessions();
   }
 
   Future<void> deleteSession(String id) async {
-    await HiveService.deleteSession(id);
+    await _repo.delete(id);
     _loadSessions();
-    unawaited(FirestoreSyncService.instance.deleteSession(id));
   }
 
   void refresh() => _loadSessions();
 
   WorkoutSession? getLastSessionForRoutine(String routineId) {
-    return HiveService.getLastSessionByRoutine(routineId);
+    return _repo.getLastByRoutine(routineId);
   }
 
   WorkoutSession? getLastSessionForProgramDay(
     String programId,
     String dayName,
   ) {
-    return HiveService.getAllSessions()
+    return _repo
+        .getAll()
         .where(
           (s) =>
               s.isCompleted &&
@@ -80,7 +86,7 @@ class WorkoutSessionsNotifier extends StateNotifier<List<WorkoutSession>> {
   }
 
   List<WorkoutSession> getSessionsInRange(DateTime start, DateTime end) {
-    return HiveService.getSessionsInRange(start, end);
+    return _repo.getInRange(start, end);
   }
 }
 
@@ -91,22 +97,28 @@ final activeWorkoutProvider =
     });
 
 class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
-  ActiveWorkoutNotifier(this._ref) : super(null) {
+  ActiveWorkoutNotifier(this._ref)
+    : _sessions = _ref.read(sessionRepositoryProvider),
+      _routines = _ref.read(routineRepositoryProvider),
+      super(null) {
     // Restore active workout if app was killed
-    final saved = HiveService.getActiveWorkout();
+    final saved = _sessions.getActive();
     if (saved != null && !saved.isCompleted) {
       state = saved;
       _startAutoSave();
     }
   }
+
   final Ref _ref;
+  final SessionRepository _sessions;
+  final RoutineRepository _routines;
   Timer? _autoSaveTimer;
 
   void _startAutoSave() {
     _autoSaveTimer?.cancel();
     _autoSaveTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (state != null) {
-        unawaited(HiveService.saveActiveWorkout(state!));
+        unawaited(_sessions.saveActive(state!));
       }
     });
   }
@@ -120,7 +132,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
 
     if (routine != null) {
       // Pre-fill from routine template
-      final lastSession = HiveService.getLastSessionByRoutine(routine.id);
+      final lastSession = _sessions.getLastByRoutine(routine.id);
 
       exercises = routine.exercises.map((re) {
         // Try to get previous sets for this exercise
@@ -167,7 +179,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     );
 
     _startAutoSave();
-    unawaited(HiveService.saveActiveWorkout(state!));
+    unawaited(_sessions.saveActive(state!));
   }
 
   /// Start the active program's current day. Prescribes this week's
@@ -214,12 +226,12 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     );
 
     _startAutoSave();
-    unawaited(HiveService.saveActiveWorkout(state!));
+    unawaited(_sessions.saveActive(state!));
   }
 
   /// Most recent working-set weight (kg) used for an exercise, for pre-fill.
   double _lastWeightFor(String exerciseId) {
-    for (final session in HiveService.getAllSessions()) {
+    for (final session in _sessions.getAll()) {
       final we = session.exercises
           .where((e) => e.exercise.id == exerciseId)
           .firstOrNull;
@@ -238,7 +250,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     if (state == null) return;
 
     // Check previous history for this exercise
-    final sessions = HiveService.getAllSessions();
+    final sessions = _sessions.getAll();
     WorkoutExercise? prevExercise;
     for (final session in sessions) {
       final found = session.exercises
@@ -411,14 +423,13 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
 
     // Update routine usage count
     if (completed.routineId != null) {
-      final routine = HiveService.getRoutine(completed.routineId!);
+      final routine = _routines.getById(completed.routineId!);
       if (routine != null) {
         final updated = routine.copyWith(
           timesUsed: routine.timesUsed + 1,
           updatedAt: DateTime.now(),
         );
-        await HiveService.saveRoutine(updated);
-        unawaited(FirestoreSyncService.instance.syncRoutine(updated));
+        await _routines.save(updated);
       }
     }
 
@@ -428,44 +439,19 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     }
 
     // Clear active workout
-    await HiveService.clearActiveWorkout();
+    await _sessions.clearActive();
     _autoSaveTimer?.cancel();
     state = null;
 
-    // Sync to Firestore in background (fire-and-forget)
-    _syncToCloud(completed);
+    // Back up to Firestore in the background (fire-and-forget).
+    unawaited(_sessions.syncToCloud(completed));
 
     return completed;
   }
 
-  /// Background sync to Firestore
-  void _syncToCloud(WorkoutSession session) {
-    try {
-      final syncService = FirestoreSyncService.instance;
-      unawaited(syncService.syncSession(session));
-
-      // Also sync exercise PRs
-      for (final we in session.exercises) {
-        final bestSet = we.bestSet;
-        if (bestSet != null) {
-          unawaited(
-            syncService.updateExerciseHistory(
-              exerciseId: we.exercise.id,
-              maxWeight: we.maxWeight,
-              maxVolume: we.totalVolume,
-              lastPerformed: session.startTime,
-            ),
-          );
-        }
-      }
-    } on Object catch (e, stackTrace) {
-      AppLogger.warning('Cloud sync skipped', error: e, stackTrace: stackTrace);
-    }
-  }
-
   /// Discard workout
   Future<void> discardWorkout() async {
-    await HiveService.clearActiveWorkout();
+    await _sessions.clearActive();
     _autoSaveTimer?.cancel();
     state = null;
   }
@@ -475,7 +461,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
     return session.copyWith(
       exercises: session.exercises.map((we) {
         // Get exercise history
-        final history = HiveService.getExerciseHistory(we.exercise.id);
+        final history = _sessions.getHistory(we.exercise.id);
         double maxWeight = 0;
         double maxVolume = 0;
 
@@ -498,7 +484,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
   /// Update exercise history after completing workout
   void _updateExerciseHistory(WorkoutSession session) {
     for (final we in session.exercises) {
-      final existing = HiveService.getExerciseHistory(we.exercise.id);
+      final existing = _sessions.getHistory(we.exercise.id);
       var maxWeight = (existing?['maxWeight'] as num?)?.toDouble() ?? 0;
       var maxVolume = (existing?['maxVolume'] as num?)?.toDouble() ?? 0;
 
@@ -508,7 +494,7 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
       }
 
       unawaited(
-        HiveService.updateExerciseHistory(we.exercise.id, {
+        _sessions.updateHistory(we.exercise.id, {
           'maxWeight': maxWeight,
           'maxVolume': maxVolume,
           'lastPerformed': session.startTime.toIso8601String(),
@@ -618,22 +604,19 @@ final workoutDurationProvider = StreamProvider<Duration>((ref) {
 // ── Exercise Library Provider ──
 final exerciseLibraryProvider =
     StateNotifierProvider<ExerciseLibraryNotifier, List<Exercise>>((ref) {
-      return ExerciseLibraryNotifier();
+      return ExerciseLibraryNotifier(ref.watch(exerciseRepositoryProvider));
     });
 
 class ExerciseLibraryNotifier extends StateNotifier<List<Exercise>> {
-  ExerciseLibraryNotifier() : super([]) {
-    state = HiveService.getAllExercises();
+  ExerciseLibraryNotifier(this._repo) : super([]) {
+    state = _repo.getAll();
   }
 
+  final ExerciseRepository _repo;
+
   Future<void> addExercise(Exercise exercise) async {
-    await HiveService.saveExercise(exercise);
-    state = HiveService.getAllExercises();
-    // Back up custom exercises to the cloud so they survive uninstall and reach
-    // other devices (built-ins ship with the app and don't need syncing).
-    if (exercise.isCustom) {
-      unawaited(FirestoreSyncService.instance.syncExercise(exercise));
-    }
+    await _repo.save(exercise);
+    state = _repo.getAll();
   }
 
   /// Resolve a list of exercise ids against the current library (used for an

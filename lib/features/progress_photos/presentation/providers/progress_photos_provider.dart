@@ -1,45 +1,31 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:strivo/core/logging/app_logger.dart';
 import 'package:strivo/core/utils/id_generator.dart';
+import 'package:strivo/features/progress_photos/data/progress_photo_repository_impl.dart';
 import 'package:strivo/features/progress_photos/domain/entities/progress_photo.dart';
-
-const String _boxName = 'progress_photos';
+import 'package:strivo/features/progress_photos/domain/progress_photo_repository.dart';
 
 final progressPhotosProvider =
     StateNotifierProvider<ProgressPhotosNotifier, List<ProgressPhoto>>((ref) {
-      return ProgressPhotosNotifier();
+      return ProgressPhotosNotifier(ref.watch(progressPhotoRepositoryProvider));
     });
 
 class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
-  ProgressPhotosNotifier() : super([]) {
-    unawaited(_init());
+  ProgressPhotosNotifier(this._repo) : super([]) {
+    unawaited(_load());
   }
-  late Box<String> _box;
+
+  final ProgressPhotoRepository _repo;
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _init() async {
-    _box = await Hive.openBox<String>(_boxName);
-    _loadPhotos();
-  }
-
-  void _loadPhotos() {
-    state =
-        _box.values
-            .map(
-              (json) => ProgressPhoto.fromMap(
-                jsonDecode(json) as Map<String, dynamic>,
-              ),
-            )
-            .toList()
-          ..sort((a, b) => b.date.compareTo(a.date));
+  Future<void> _load() async {
+    state = await _repo.loadAll();
   }
 
   Future<ProgressPhoto?> addPhoto({
@@ -79,8 +65,8 @@ class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
         bodyWeight: bodyWeight,
       );
 
-      await _box.put(photo.id, jsonEncode(photo.toMap()));
-      _loadPhotos();
+      await _repo.save(photo);
+      await _load();
       return photo;
     } on Object catch (e, stackTrace) {
       AppLogger.warning(
@@ -109,15 +95,14 @@ class ProgressPhotosNotifier extends StateNotifier<List<ProgressPhoto>> {
       );
     }
 
-    await _box.delete(id);
-    _loadPhotos();
+    await _repo.delete(id);
+    await _load();
   }
 
   Future<void> updatePhotoNote(String id, String note) async {
     final photo = state.firstWhere((p) => p.id == id);
-    final updated = photo.copyWith(note: note);
-    await _box.put(id, jsonEncode(updated.toMap()));
-    _loadPhotos();
+    await _repo.save(photo.copyWith(note: note));
+    await _load();
   }
 
   List<ProgressPhoto> getPhotosByMonth(int year, int month) {

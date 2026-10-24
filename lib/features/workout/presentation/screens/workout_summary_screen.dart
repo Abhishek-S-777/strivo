@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/units/weight_unit.dart';
+import 'package:strivo/features/workout/data/session_repository_impl.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
@@ -17,7 +17,8 @@ class WorkoutSummaryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(weightUnitProvider); // rebuild on kg/lbs change
-    final session = HiveService.getSession(sessionId);
+    final sessionRepo = ref.read(sessionRepositoryProvider);
+    final session = sessionRepo.getById(sessionId);
 
     if (session == null) {
       return Scaffold(
@@ -29,9 +30,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
     // Get previous session for comparison
     WorkoutSession? previousSession;
     if (session.routineId != null) {
-      final routineSessions = HiveService.getSessionsByRoutine(
-        session.routineId!,
-      );
+      final routineSessions = sessionRepo.getByRoutine(session.routineId!);
       if (routineSessions.length > 1) {
         previousSession = routineSessions[1]; // Second most recent
       }

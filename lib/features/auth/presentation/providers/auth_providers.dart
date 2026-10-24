@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:strivo/core/services/credential_store.dart';
 import 'package:strivo/core/services/firestore_sync_service.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
-import 'package:strivo/features/routines/presentation/screens/routines_screen.dart';
+import 'package:strivo/features/routines/presentation/providers/routine_providers.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 
 /// Holds the live auth state and exposes it synchronously for the router.
