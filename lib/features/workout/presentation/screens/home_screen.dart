@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:strivo/core/services/hive_service.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/core/units/weight_unit.dart';
@@ -14,6 +13,7 @@ import 'package:strivo/features/analytics/presentation/providers/insights_engine
 import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
 import 'package:strivo/features/programs/domain/entities/program.dart';
 import 'package:strivo/features/programs/presentation/providers/program_providers.dart';
+import 'package:strivo/features/routines/data/routine_repository_impl.dart';
 import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
@@ -27,7 +27,7 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessions = ref.watch(workoutSessionsProvider);
     final activeWorkout = ref.watch(activeWorkoutProvider);
-    final routines = HiveService.getAllRoutines();
+    final routines = ref.read(routineRepositoryProvider).getAll();
     final weeklyStats = ref.watch(weeklyStatsProvider);
     final weeklyLoad = ref.watch(weeklyLoadHistoryProvider);
     final user = ref.watch(currentUserProvider).valueOrNull;
