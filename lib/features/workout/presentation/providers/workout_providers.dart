@@ -15,6 +15,7 @@ import 'package:strivo/features/workout/domain/entities/routine.dart';
 import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/domain/exercise_repository.dart';
+import 'package:strivo/features/workout/domain/personal_record.dart';
 import 'package:strivo/features/workout/domain/session_repository.dart';
 
 // ── Default Rest Timer (user setting) ──
@@ -473,7 +474,12 @@ class ActiveWorkoutNotifier extends StateNotifier<WorkoutSession?> {
         return we.copyWith(
           sets: we.sets.map((s) {
             if (!s.isCompleted || s.isWarmup) return s;
-            final isPR = s.weight > maxWeight || s.volume > maxVolume;
+            final isPR = isPersonalRecord(
+              weight: s.weight,
+              volume: s.volume,
+              previousMaxWeight: maxWeight,
+              previousMaxVolume: maxVolume,
+            );
             return s.copyWith(isPR: isPR);
           }).toList(),
         );
