@@ -1,12 +1,11 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/services/export_service.dart';
-import 'package:strivo/core/services/firestore_sync_service.dart';
+import 'package:strivo/core/sync/cloud_sync_repository.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
@@ -203,7 +202,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildUserCard(BuildContext context, WidgetRef ref, int workoutCount) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = ref.watch(currentUserProvider).valueOrNull;
     final isSignedIn = user != null;
 
     return StrivoCard(
@@ -292,7 +291,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildCloudSyncSection(BuildContext context, WidgetRef ref) {
-    final user = FirebaseAuth.instance.currentUser;
+    final user = ref.watch(currentUserProvider).valueOrNull;
     final isSignedIn = user != null;
 
     if (!isSignedIn) {
@@ -368,7 +367,7 @@ class ProfileScreen extends ConsumerWidget {
       const SnackBar(content: Text('Backing up to cloud…')),
     );
     try {
-      await FirestoreSyncService.instance.pushAllLocal();
+      await ref.read(cloudSyncRepositoryProvider).pushAllLocal();
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(
