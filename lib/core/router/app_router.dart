@@ -8,6 +8,7 @@ import 'package:strivo/features/auth/presentation/providers/auth_providers.dart'
 // import 'package:strivo/features/progress_photos/presentation/screens/progress_photos_screen.dart';
 import 'package:strivo/features/auth/presentation/screens/auth_screen.dart';
 import 'package:strivo/features/auth/presentation/screens/splash_screen.dart';
+import 'package:strivo/features/auth/presentation/screens/welcome_back_screen.dart';
 import 'package:strivo/features/profile/presentation/screens/profile_screen.dart';
 import 'package:strivo/features/programs/presentation/screens/program_builder_screen.dart';
 import 'package:strivo/features/routines/presentation/screens/routine_builder_screen.dart';
@@ -38,12 +39,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final loggedIn = auth.isAuthenticated;
       final atAuth = loc == '/auth';
       final atSplash = loc == '/splash';
+      final atWelcome = loc == '/welcome';
 
       if (!loggedIn) {
-        return atAuth ? null : '/auth';
+        // Allow the auth and welcome-back screens; otherwise send returning
+        // users (we remember their email) to welcome-back, new users to auth.
+        if (atAuth || atWelcome) return null;
+        return auth.rememberedEmail != null ? '/welcome' : '/auth';
       }
-      // Signed in — bounce away from auth/splash into the app.
-      if (atAuth || atSplash) return '/';
+      // Signed in — bounce away from auth/splash/welcome into the app.
+      if (atAuth || atSplash || atWelcome) return '/';
       return null;
     },
     routes: [
@@ -137,6 +142,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/auth',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const AuthScreen(),
+      ),
+      GoRoute(
+        path: '/welcome',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const WelcomeBackScreen(),
       ),
     ],
   );
