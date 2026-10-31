@@ -2,6 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 
+/// Search query for the Analytics "Exercise Progress" list. Auto-disposes
+/// (resets to '') when the Analytics screen leaves the tree.
+final AutoDisposeStateProvider<String> analyticsExerciseQueryProvider =
+    StateProvider.autoDispose<String>((ref) => '');
+
 class WeeklyStats {
   // 0 = current week, -1 = last week, …
 
