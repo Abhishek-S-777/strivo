@@ -1,42 +1,50 @@
 # Strivo
 
-An offline-first gym workout tracker for strength training: fast set logging,
-strength analytics, and automatic training insights, with per-account cloud
-backup.
+Strivo is a workout tracker I built for strength training. It is offline-first,
+so logging a set never waits on the network, and every account backs up to the
+cloud. The whole app is built around the two things a lifting app has to get
+right: logging fast while you train, and showing you afterwards whether you are
+actually progressing.
 
 [![CI](https://github.com/Abhishek-S-777/strivo/actions/workflows/ci.yaml/badge.svg)](https://github.com/Abhishek-S-777/strivo/actions/workflows/ci.yaml)
 ![Flutter 3.38](https://img.shields.io/badge/flutter-3.38-blue)
 ![State: Riverpod](https://img.shields.io/badge/state-Riverpod-7c4dff)
 ![Backend: Firebase](https://img.shields.io/badge/backend-Firebase-orange)
 
-> Screenshots: _add captures of Home, Active Workout, and Analytics here._
+> Screenshots: add captures of Home, Active Workout, and Analytics here.
 
-## Features
+## What it does
 
-- **Fast logging** — each set pre-fills from the last time you did the exercise;
-  weight and reps use tap-to-step inputs; a rest timer starts on set completion;
-  the active session auto-saves so it survives an app kill.
-- **Programs and routines** — reusable routine templates, plus multi-week
-  programs with per-week set/rep targets and a position pointer that advances as
-  you train.
-- **Strength analytics** — estimated 1RM (Epley) trend per lift, weekly volume
-  with history paging, muscle-group distribution, and a 12-week consistency
-  heatmap.
-- **Training insights** — a rule engine flags personal records, strength
-  trends and plateaus, volume milestones, consistency streaks, muscle
-  imbalances, overtraining risk, and recovery.
-- **Offline-first with cloud sync** — Hive is the local source of truth;
-  Cloud Firestore is a per-account backup that restores on sign-in.
-- **kg or lbs** — weights are stored in kilograms and converted for display and
-  input, so the unit can be switched at any time without data loss.
+Logging is the part that has to be fast, so each set starts pre-filled from the
+last time you did that exercise. Weight and reps step with a tap, the rest timer
+starts the moment you check a set off, and the session auto-saves, so nothing is
+lost if the app is killed mid-workout.
+
+Routines are reusable templates. Programs go a step further: multi-week plans
+with per-week set and rep targets and a pointer that advances to the next day as
+you complete sessions.
+
+The analytics are what you look at between workouts: an estimated 1RM trend per
+lift (Epley), weekly volume you can page back through, a muscle-group split, and
+a 12-week consistency heatmap. On top of that, a small rule engine reads your
+history and surfaces what's worth knowing: new PRs, plateaus, volume milestones,
+streaks, muscle imbalances, and signs you should back off.
+
+Weights are stored in kilograms and converted on the fly, so switching between
+kg and lbs never rewrites or corrupts your data.
 
 ## Architecture
 
-Strivo is feature-first. Each feature is split into `domain` (entities and pure
-logic), `data` (repository implementations over the data sources), and
-`presentation` (screens, widgets, and Riverpod controllers). Presentation
-depends only on repository interfaces — no Firebase or Hive calls leak into the
-UI.
+The code is feature-first, and each feature is split into three layers:
+
+- `domain` holds entities and pure logic (1RM, PR detection, the insight rules).
+  It has no Flutter, Hive, or Firebase in it, which keeps it cheap to unit-test.
+- `data` holds the repository implementations that sit over the Hive and
+  Firestore data sources.
+- `presentation` holds the screens, widgets, and Riverpod controllers.
+
+Controllers only ever talk to repository interfaces, never to Hive or Firebase
+directly, so the storage underneath stays swappable and easy to fake in tests.
 
 ```mermaid
 flowchart TD
@@ -64,21 +72,14 @@ flowchart TD
     RImpl --> F
 ```
 
-- **Entities and pure logic** live in `domain` and are unit-tested in isolation
-  (no Flutter, Hive, or Firebase).
-- **Repositories** wrap the `HiveService` and `FirestoreSyncService` data
-  sources; controllers receive them through Riverpod providers, which makes them
-  trivial to replace with fakes in tests.
-- **State** uses Riverpod 2 `StateNotifier`/`Notifier` controllers (no code
-  generation).
-
-See [DATA_MODEL.md](DATA_MODEL.md) for the local and cloud schema, and
-[docs/decisions/](docs/decisions/) for the architecture decision records.
+State is plain Riverpod 2 (`StateNotifier`/`Notifier`, no code generation).
+[DATA_MODEL.md](DATA_MODEL.md) has the schema, and [docs/decisions/](docs/decisions/)
+records the reasoning behind the sync model and the security rules.
 
 ## Tech stack
 
-Flutter · Dart · Riverpod · go_router · Hive · Firebase Auth · Cloud Firestore ·
-fl_chart. Lints use `very_good_analysis` with strict casts; CI runs format,
+Flutter, Dart, Riverpod, go_router, Hive, Firebase Auth, Cloud Firestore, and
+fl_chart. Linting is `very_good_analysis` with strict casts, and CI runs format,
 analyze, and tests on every push and pull request.
 
 ## Project structure
@@ -94,36 +95,36 @@ lib/
 test/            unit and widget tests mirroring lib/
 ```
 
-## Running locally
+## Running it locally
 
-Requires the Flutter SDK (3.38.x). This project is developed with
-[FVM](https://fvm.app/); plain `flutter`/`dart` on your `PATH` work too.
+You need the Flutter SDK (3.38.x). I develop this with [FVM](https://fvm.app/),
+but a plain `flutter`/`dart` on your `PATH` works fine too.
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-### Using your own Firebase project
+### Pointing it at your own Firebase
 
-The committed `firebase_options.dart` and `google-services.json` point at the
-original project. To run against your own:
+The `firebase_options.dart` and `google-services.json` in the repo point at the
+original project. To use your own:
 
-1. Create a Firebase project and enable **Email/Password** auth and
-   **Cloud Firestore**.
-2. Install the FlutterFire CLI and run `flutterfire configure`, which rewrites
-   `lib/firebase_options.dart` and the Android config.
-3. Deploy the owner-only rules in [firestore.rules](firestore.rules) so each
-   user can read and write only their own document subtree.
+1. Create a Firebase project, then turn on Email/Password auth and Cloud
+   Firestore.
+2. Install the FlutterFire CLI and run `flutterfire configure`. It rewrites
+   `lib/firebase_options.dart` and the Android config for you.
+3. Deploy the rules in [firestore.rules](firestore.rules) so each user can only
+   read and write their own data.
 
 ## Security
 
-The committed Firebase config (`firebase_options.dart`, `google-services.json`)
-identifies the project but is not a secret — a client app ships these in its
-binary, so access control is enforced on the server. All user data lives under
-`users/{uid}`, and [firestore.rules](firestore.rules) grants read/write only to
-the authenticated owner. The project's API key should additionally be restricted
-and App Check enabled in the Google Cloud console. See
+The Firebase config in the repo identifies the project but is not a secret. A
+client app ships those files inside its binary no matter what, so the real access
+control lives on the server. Every account's data sits under `users/{uid}`, and
+[firestore.rules](firestore.rules) lets a signed-in user touch only their own
+subtree. Beyond that, the API key should be restricted and App Check enabled in
+the Google Cloud console; the reasoning is written up in
 [docs/decisions/0004-firebase-config-hardening.md](docs/decisions/0004-firebase-config-hardening.md).
 
 ## Testing
@@ -135,14 +136,14 @@ flutter test           # unit + widget tests
 
 ## Documentation
 
-- [GUIDE.md](GUIDE.md) — feature-by-feature walkthrough and the formulas used.
-- [DATA_MODEL.md](DATA_MODEL.md) — local (Hive) and cloud (Firestore) schema.
-- [docs/decisions/](docs/decisions/) — architecture decision records.
+- [GUIDE.md](GUIDE.md) walks through each feature and the formulas it uses.
+- [DATA_MODEL.md](DATA_MODEL.md) covers the local (Hive) and cloud (Firestore) schema.
+- [docs/decisions/](docs/decisions/) holds the architecture decision records.
 
-## Note on authorship
+## A note on authorship
 
-Built with AI assistance; architecture, review and refactoring by me.
+Built with AI assistance; the architecture, review, and refactoring are mine.
 
 ## License
 
-Released under the [MIT License](LICENSE).
+MIT, see [LICENSE](LICENSE).
