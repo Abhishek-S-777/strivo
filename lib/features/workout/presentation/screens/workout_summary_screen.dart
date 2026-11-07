@@ -6,8 +6,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
 import 'package:strivo/core/units/weight_unit.dart';
 import 'package:strivo/features/workout/data/session_repository_impl.dart';
-import 'package:strivo/features/workout/domain/entities/workout_exercise.dart';
 import 'package:strivo/features/workout/domain/entities/workout_session.dart';
+import 'package:strivo/features/workout/presentation/widgets/summary/exercise_breakdown_card.dart';
+import 'package:strivo/features/workout/presentation/widgets/summary/summary_stat_card.dart';
 import 'package:strivo/shared/widgets/strivo_card.dart';
 
 class WorkoutSummaryScreen extends ConsumerWidget {
@@ -100,7 +101,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _SummaryStatCard(
+                      child: SummaryStatCard(
                         label: 'Duration',
                         value: session.durationFormatted,
                         icon: LucideIcons.clock,
@@ -108,7 +109,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _SummaryStatCard(
+                      child: SummaryStatCard(
                         label: 'Volume',
                         value: Units.volumeLabel(session.totalVolume),
                         icon: LucideIcons.barChart2,
@@ -130,7 +131,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: _SummaryStatCard(
+                      child: SummaryStatCard(
                         label: 'Sets',
                         value: '${session.totalCompletedSets}',
                         icon: LucideIcons.layers,
@@ -143,7 +144,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _SummaryStatCard(
+                      child: SummaryStatCard(
                         label: 'Exercises',
                         value: '${session.totalExercises}',
                         icon: LucideIcons.dumbbell,
@@ -252,7 +253,7 @@ class WorkoutSummaryScreen extends ConsumerWidget {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _ExerciseBreakdownCard(
+                      child: ExerciseBreakdownCard(
                         exercise: exercise,
                         previousExercise: prevExercise,
                       ),
@@ -276,185 +277,6 @@ class WorkoutSummaryScreen extends ConsumerWidget {
                     ),
                     child: const Text('Done'),
                   ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryStatCard extends StatelessWidget {
-  const _SummaryStatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.comparison,
-  });
-  final String label;
-  final String value;
-  final IconData icon;
-  final double? comparison;
-
-  @override
-  Widget build(BuildContext context) {
-    return StrivoCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, size: 16, color: AppColors.textTertiary),
-                if (comparison != null && comparison != 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: comparison! > 0
-                          ? AppColors.successMuted
-                          : AppColors.errorMuted,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      '${comparison! > 0 ? '+' : ''}${comparison!.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: comparison! > 0
-                            ? AppColors.increase
-                            : AppColors.decrease,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: AppColors.textTertiary),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ExerciseBreakdownCard extends StatelessWidget {
-  const _ExerciseBreakdownCard({
-    required this.exercise,
-    this.previousExercise,
-  });
-  final WorkoutExercise exercise;
-  final WorkoutExercise? previousExercise;
-
-  /// RPE reads cleaner as a whole number when it is one ("RPE 8", not "8.0").
-  String _rpeLabel(double rpe) =>
-      rpe % 1 == 0 ? rpe.toStringAsFixed(0) : rpe.toStringAsFixed(1);
-
-  @override
-  Widget build(BuildContext context) {
-    final prev = previousExercise;
-    final volumeDiff = prev != null
-        ? exercise.totalVolume - prev.totalVolume
-        : null;
-    final completedSets = exercise.sets.where((s) => s.isCompleted).toList();
-
-    return StrivoCard(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    exercise.exercise.name,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                if (volumeDiff != null && volumeDiff != 0)
-                  Text(
-                    '${volumeDiff > 0 ? '+' : ''}${Units.fromKg(volumeDiff).toStringAsFixed(0)} ${Units.label} vol',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: volumeDiff > 0
-                          ? AppColors.increase
-                          : AppColors.decrease,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...completedSets.map(
-              (s) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 24,
-                      child: Text(
-                        '${s.setNumber}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ),
-                    Flexible(
-                      child: Text(
-                        '${Units.weightLabel(s.weight)} × ${s.reps} reps',
-                        style: Theme.of(context).textTheme.bodySmall,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (s.isPR) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.pr.withAlpha(20),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: const Text(
-                          'PR',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.pr,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (s.rpe != null) ...[
-                      const Spacer(),
-                      Text(
-                        'RPE ${_rpeLabel(s.rpe!)}',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ],
                 ),
               ),
             ),
