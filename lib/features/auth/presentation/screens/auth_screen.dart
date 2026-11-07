@@ -5,8 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:strivo/core/theme/app_colors.dart';
-import 'package:strivo/core/theme/app_spacing.dart';
 import 'package:strivo/features/auth/presentation/providers/auth_providers.dart';
+import 'package:strivo/features/auth/presentation/widgets/auth_error_banner.dart';
+import 'package:strivo/features/auth/presentation/widgets/auth_glow.dart';
+import 'package:strivo/features/auth/presentation/widgets/auth_header.dart';
+import 'package:strivo/features/auth/presentation/widgets/auth_mode_toggle.dart';
+import 'package:strivo/features/auth/presentation/widgets/field_label.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -101,24 +105,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Atmospheric glow
-          Positioned(
-            top: -160,
-            right: -120,
-            child: Container(
-              width: 360,
-              height: 360,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    AppColors.primary.withAlpha(38),
-                    AppColors.background.withAlpha(0),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          const AuthGlow(),
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -130,43 +117,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        // ── Wordmark ──
-                        Center(
-                          child: Text(
-                            'STRIVO',
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 40),
-
-                        // ── Headline ──
-                        Text(
-                          _isLogin ? 'Welcome Back' : 'Join the Elite.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.displayMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -1,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _isLogin
-                              ? 'Log in to track your progression.'
-                              : 'Precision tracking for serious lifters.',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
+                        AuthHeader(isLogin: _isLogin),
                         const SizedBox(height: 36),
 
                         // ── Name (signup only) ──
                         if (!_isLogin) ...[
-                          const _FieldLabel('Full Name'),
+                          const FieldLabel('Full Name'),
                           const SizedBox(height: 8),
                           TextFormField(
                             controller: _nameController,
@@ -188,7 +144,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ],
 
                         // ── Email ──
-                        const _FieldLabel('Email Address'),
+                        const FieldLabel('Email Address'),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _emailController,
@@ -215,7 +171,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const _FieldLabel('Password'),
+                            const FieldLabel('Password'),
                             if (_isLogin)
                               GestureDetector(
                                 onTap: _forgotPassword,
@@ -282,35 +238,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         // ── Error ──
                         if (_error != null) ...[
                           const SizedBox(height: 18),
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.error.withAlpha(20),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                              border: Border.all(
-                                color: AppColors.error.withAlpha(50),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  LucideIcons.alertCircle,
-                                  size: 16,
-                                  color: AppColors.error,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _error!,
-                                    style: const TextStyle(
-                                      color: AppColors.error,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          AuthErrorBanner(message: _error!),
                         ],
 
                         const SizedBox(height: 28),
@@ -342,29 +270,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         const SizedBox(height: 24),
 
                         // ── Toggle ──
-                        Center(
-                          child: GestureDetector(
-                            onTap: _isLoading ? null : _toggleMode,
-                            child: Text.rich(
-                              TextSpan(
-                                text: _isLogin
-                                    ? 'New to Strivo?  '
-                                    : 'Already a member?  ',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: _isLogin ? 'Sign Up' : 'Log In',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                        AuthModeToggle(
+                          isLogin: _isLogin,
+                          onTap: _isLoading ? null : _toggleMode,
                         ),
                       ],
                     ),
@@ -374,26 +282,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 2),
-      child: Text(
-        text.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: AppColors.textSecondary,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 1.2,
-        ),
       ),
     );
   }
