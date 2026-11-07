@@ -1,10 +1,11 @@
 # Strivo — Complete Guide
 
-**Strivo** is a premium, offline‑first gym workout tracker for serious lifters. It is built for *fast logging* during a session and *intelligent analysis* afterwards. No social feed, no clutter — just your training and your progress.
+**Strivo** is an offline-first gym workout tracker for strength training. It is
+built for fast logging during a session and analysis afterwards.
 
-- **Platform:** Flutter (Android target configured), dark‑mode only
+- **Platform:** Flutter (Android target configured), dark theme only
 - **State:** Riverpod · **Navigation:** go_router · **Local DB:** Hive · **Cloud:** Firebase (Auth + Firestore)
-- **Design:** "Elite Performance" — deep‑black canvas, periwinkle‑blue primary, lime‑green accent
+- **Design:** dark theme — deep-black canvas, periwinkle-blue primary, lime-green accent
 
 > Weights display in **kilograms or pounds** — your choice (Profile → Weight Unit). Data is always stored in kg internally and converted on the fly, so you can switch anytime without losing or corrupting anything. Strivo does **not** track height, age, BMI, or body‑fat — "weight" everywhere means the load on the bar/dumbbell. (The only body‑weight field is an optional tag on progress photos, a feature currently disabled.)
 
@@ -25,7 +26,7 @@ Auth is handled by Firebase Authentication (Email/Password). Your session persis
 
 The bottom bar has four tabs: **Home · Routines · Analytics · Profile.** *(A Progress‑Photos tab exists in the codebase but is temporarily disabled.)*
 
-### 🏠 Home — your dashboard
+### Home — your dashboard
 - **Welcome header** with your name and the date.
 - **Volume This Week** hero card: total kg lifted this week, a trend pill vs last week (▲/▼ %), a sparkline of recent weeks, and Workouts / Sets / PRs counters.
 - **Today's Workout** card: if you have an **active program**, this shows the program's current session (e.g. "Week 3 · Push Day") with its exercises and prescribed targets, and a one‑tap **Start**. With no active program it falls back to a **Next Routine** card (your most‑recently‑used routine). Either becomes **Resume Workout** if a session is already in progress.
@@ -33,7 +34,7 @@ The bottom bar has four tabs: **Home · Routines · Analytics · Profile.** *(A 
 - **Your Routines**: horizontal quick‑access list.
 - **Recent Workouts**: your last sessions with duration, exercise count, volume, and PR badges.
 
-### 📋 Routines — reusable templates
+### Routines — reusable templates
 - Tap **New** to open the **Routine Builder**.
 - Give it a name (e.g. "Push Day") and optional description.
 - **Add Exercise** opens a searchable picker (filter by muscle group, or create a custom exercise).
@@ -41,7 +42,7 @@ The bottom bar has four tabs: **Home · Routines · Analytics · Profile.** *(A 
 - **Drag to reorder** exercises. Delete with the ✕.
 - **Save.** Start a routine anytime from Home, Routines, or the builder.
 
-### 🗓️ Programs — multi-week structured plans
+### Programs — multi-week structured plans
 Open the **Programs** toggle at the top of the Routines tab. A **Program** is a multi-week plan (e.g. a 12-week hypertrophy block, or an ongoing Push/Pull/Legs rotation):
 
 - Tap **New** → name it, set **length in weeks** (or flip **"No fixed end"** for an endless rotation), then add **training days** (Upper A, Lower A, Push, Pull…).
@@ -50,7 +51,7 @@ Open the **Programs** toggle at the top of the Routines tab. A **Program** is a 
 
 **Running a program:** Home shows **"Today's Workout"** = the active program's current day, with this week's prescribed sets/reps/RPE. Start it → the sets are pre-built to the prescription, and **weight is pre-filled from your last time on that lift** so you simply work to the target and add load. Finishing **advances the program** to the next day (and rolls to the next week automatically); finite programs finish with 🎉 (and can be restarted). The exact same day next week pre-fills from this week — true week-over-week progression.
 
-### 💪 Active Workout — the core logging screen
+### Active Workout — the core logging screen
 This is where speed matters. When you start a routine, Strivo **pre‑fills every set with your last session's weight and reps** for that exercise, so most sets need *zero typing*.
 
 - **Per set:** a `PREVIOUS` column (what you did last time), an inline **weight** field, an inline **reps** field, and a **✓ complete** button.
@@ -64,13 +65,13 @@ This is where speed matters. When you start a routine, Strivo **pre‑fills ever
 - **Auto‑save:** the in‑progress session is saved every 10 seconds, so a crash or accidental exit never loses data — you'll be offered to resume.
 - **Finish** → confirmation → **Workout Summary**.
 
-### 🏁 Workout Summary
+### Workout Summary
 - Celebration header (🏆 if you hit any PRs).
 - Stat grid: Duration, Volume, Sets, Exercises — each with a **vs‑previous‑session delta**.
 - **Personal Records** list for the session.
 - **Exercise Breakdown**: every set, with PR and RPE tags, and per‑exercise volume change.
 
-### 📊 Analytics
+### Analytics
 - **Volume This Week** hero (number + trend + stats).
 - **Smart Insights**: auto‑generated coaching cards (see §4).
 - **Strength Trend**: a 1RM curve for a selected lift, with an **EST. 1RM** badge and a horizontal exercise selector. Tap any lift to switch.
@@ -79,7 +80,7 @@ This is where speed matters. When you start a routine, Strivo **pre‑fills ever
 - **Consistency**: a 12‑week × 7‑day heatmap (GitHub‑style) colored by daily training load, with an active‑days count.
 - **Overall Trend** badge and an **Exercise Progress** list. Tap any exercise → **Exercise History** with a weight/volume chart toggle and a full session table.
 
-### 👤 Profile
+### Profile
 - Account card (name/email, cloud‑sync status).
 - **All‑Time Stats**: workouts, total volume, total sets, time trained.
 - **Settings** (all functional, persisted): **Weight Unit (kg ⟷ lbs)** — switch anytime, the whole app re‑labels and converts instantly; **Default Rest Timer** (0:45–5:00) — used between sets; **Weight Increment** — how much +/- adds when logging (kg: 0.5/1/2.5/5 · lbs: 1/2.5/5/10).
