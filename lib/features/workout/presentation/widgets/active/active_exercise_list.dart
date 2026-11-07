@@ -11,7 +11,7 @@ import 'package:strivo/features/workout/domain/entities/workout_session.dart';
 import 'package:strivo/features/workout/presentation/providers/workout_providers.dart';
 import 'package:strivo/features/workout/presentation/widgets/active/empty_exercise_state.dart';
 import 'package:strivo/features/workout/presentation/widgets/active/exercise_card.dart';
-import 'package:strivo/features/workout/presentation/widgets/exercise_picker_sheet.dart';
+import 'package:strivo/features/workout/presentation/widgets/alternatives_sheet.dart';
 
 /// The reorderable list of exercise cards in an active workout. Wires each
 /// card's set/notes/remove/swap/video actions to the workout notifier, and
