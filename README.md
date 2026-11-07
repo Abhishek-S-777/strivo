@@ -113,8 +113,18 @@ original project. To run against your own:
    **Cloud Firestore**.
 2. Install the FlutterFire CLI and run `flutterfire configure`, which rewrites
    `lib/firebase_options.dart` and the Android config.
-3. Apply owner-only Firestore rules so each user can read and write only their
-   own document subtree (see [docs/decisions/](docs/decisions/)).
+3. Deploy the owner-only rules in [firestore.rules](firestore.rules) so each
+   user can read and write only their own document subtree.
+
+## Security
+
+The committed Firebase config (`firebase_options.dart`, `google-services.json`)
+identifies the project but is not a secret — a client app ships these in its
+binary, so access control is enforced on the server. All user data lives under
+`users/{uid}`, and [firestore.rules](firestore.rules) grants read/write only to
+the authenticated owner. The project's API key should additionally be restricted
+and App Check enabled in the Google Cloud console. See
+[docs/decisions/0004-firebase-config-hardening.md](docs/decisions/0004-firebase-config-hardening.md).
 
 ## Testing
 
