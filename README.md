@@ -12,11 +12,8 @@ you train, and showing you afterwards whether you are actually progressing.
 ![Backend](https://img.shields.io/badge/Backend-Firebase-orange)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
-Built with AI assistance. The architecture, review, and refactoring are mine.
-
 ## Contents
 
-- [Screenshots](#screenshots)
 - [Features](#features)
 - [Architecture](#architecture)
 - [The sync model end to end](#the-sync-model-end-to-end)
@@ -25,19 +22,8 @@ Built with AI assistance. The architecture, review, and refactoring are mine.
 - [Getting started](#getting-started)
 - [Running the tests](#running-the-tests)
 - [Privacy](#privacy)
+- [How it was built](#how-it-was-built)
 - [License](#license)
-
-## Screenshots
-
-Screenshots are not committed yet. The screens worth capturing for a gallery:
-
-1. Home (weekly volume hero, today's workout, recent sessions)
-2. Active workout (set logging and rest timer)
-3. Workout summary (PRs and per-exercise breakdown)
-4. Analytics (strength trend, insights, consistency heatmap)
-5. Routines and programs
-6. Exercise history (chart and table)
-7. Profile (settings, unit toggle, plate calculator)
 
 ## Features
 
@@ -235,6 +221,10 @@ fvm flutter analyze
 Data is scoped to a single account and stored in the Firebase project you deploy
 to. There are no global feeds and no cross-account access. Weights and workout
 history never leave your own account's document subtree.
+
+## How it was built
+
+I built Strivo with AI tools (Claude Code) for scaffolding and first-pass reviews. I designed the architecture and the sync model, and I reviewed, tested and refactored every change. After the first version, I refactored it in a series of small pull requests, one concern each (data layer, screen splits, tests, CI). The reasoning behind the main choices is in [docs/decisions](docs/decisions).
 
 ## License
 
